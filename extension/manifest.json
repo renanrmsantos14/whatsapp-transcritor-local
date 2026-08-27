@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "WhatsApp Transcritor Local",
+  "version": "0.1.0",
+  "description": "Transcreve notas de voz recebidas no WhatsApp Web localmente.",
+  "minimum_chrome_version": "142",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "http://127.0.0.1:8765/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Transcritor local",
+    "default_popup": "setup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["page-hook.js"],
+      "world": "MAIN",
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["selectors.js", "content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}
