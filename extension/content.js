@@ -73,6 +73,8 @@
     if (!response?.ok || !response.health?.ready) throw new Error("Transcritor local indisponível.");
   }
   async function capture(row, ui) {
+    const expectedId = S.messageId(row);
+    if (!row.isConnected) throw new Error("A mensagem saiu da conversa atual.");
     const hook = await askPage("ping", {}, 2000);
     if (!hook.ok) throw new Error("Recarregue a aba do WhatsApp para ativar a captura.");
     const button = S.transportButton(row);
@@ -86,6 +88,7 @@
     try {
       const response = await captured;
       if (!response.ok || !response.blob) throw new Error(response.error || "Áudio não capturado.");
+      if (!row.isConnected || (expectedId && S.messageId(row) !== expectedId)) throw new Error("A conversa mudou durante a captura.");
       return response.blob;
     } finally { await askPage("hold", { ms: 2000 }); await askPage("silence"); await askPage("disarm"); }
   }
@@ -110,6 +113,7 @@
     active = true;
     while (pending.length) {
       const job = pending.shift(); queued.delete(job.key);
+      if (!job.row.isConnected) continue;
       try { await process(job.row, job.ui); } catch (error) { render(job.ui, "Não foi possível transcrever.", error.message); }
     }
     active = false;
