@@ -6,4 +6,4 @@ root = fs.GetParentFolderName(WScript.ScriptFullName)
 root = fs.GetParentFolderName(root)
 python = root & "\.venv\Scripts\pythonw.exe"
 shell.CurrentDirectory = root
-shell.Run Chr(34) & python & Chr(34) & " -m uvicorn server.app:app --host 127.0.0.1 --port 8765", 0, False
+shell.Run Chr(34) & python & Chr(34) & " -m server.launcher", 0, False

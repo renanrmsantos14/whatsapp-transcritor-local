@@ -41,7 +41,7 @@ Set-Content -LiteralPath (Join-Path $root "extension\local-config.js") -Value "g
 Push-Location $root
 try { & $venvPython -m server.warmup } finally { Pop-Location }
 
-$backend = Start-Process -FilePath $venvPython -ArgumentList "-m uvicorn server.app:app --host 127.0.0.1 --port 8765" -WorkingDirectory $root -WindowStyle Hidden -PassThru
+$backend = Start-Process -FilePath $venvPython -ArgumentList "-m server.launcher" -WorkingDirectory $root -WindowStyle Hidden -PassThru
 try {
     $healthy = $false
     for ($i = 0; $i -lt 20; $i++) {
