@@ -7,6 +7,13 @@ foreach ($relative in $required) { if (-not (Test-Path (Join-Path $root $relativ
 $manifest = Get-Content (Join-Path $root "extension\manifest.json") -Raw | ConvertFrom-Json
 if ($manifest.version -ne "0.2.0" -or -not $manifest.key) { throw "Manifesto v0.2.0 inválido" }
 if ($ValidateOnly) { Write-Host "Validação do instalador concluída: v0.2.0"; exit 0 }
+$rootProcesses = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+    $_.Name -match "^pythonw?\.exe$" -and
+    $_.CommandLine -match "-m\s+server\.(supervisor|launcher)" -and
+    $_.CommandLine.Contains($root)
+})
+foreach ($rootProcess in ($rootProcesses | Sort-Object ProcessId -Descending)) { Stop-Process -Id $rootProcess.ProcessId -Force -ErrorAction SilentlyContinue }
+if ($rootProcesses.Count) { Start-Sleep -Seconds 1 }
 $installRoot = Join-Path $env:LOCALAPPDATA "Betinhos\WhatsAppTranscritor"
 if ([IO.Path]::GetFullPath($root).TrimEnd("\") -ne [IO.Path]::GetFullPath($installRoot).TrimEnd("\")) {
     $backupRoot = Join-Path $env:LOCALAPPDATA "Betinhos\WhatsAppTranscritorBackup"
@@ -85,19 +92,28 @@ while ((Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 8765 -State Li
 if (Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue) { throw "Porta 8765 permaneceu ocupada após encerrar o backend anterior" }
 
 $backend = Start-Process -FilePath $venvPython -ArgumentList "-m server.launcher" -WorkingDirectory $root -WindowStyle Hidden -PassThru
+$healthy = $false
+for ($i = 0; $i -lt 20; $i++) {
+    Start-Sleep -Milliseconds 500
+    try {
+        $headers = @{ "X-Local-Token" = $token }
+        $response = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -Headers $headers -TimeoutSec 2
+        if ($response.compatible -eq $true -and $response.api_version -eq 2) { $healthy = $true; break }
+    } catch { }
+}
+if (-not $healthy) { if ($backend -and -not $backend.HasExited) { Stop-Process -Id $backend.Id -Force }; throw "Health check falhou em http://127.0.0.1:8765/health" }
+
+if ($backend -and -not $backend.HasExited) { Stop-Process -Id $backend.Id -Force; Wait-Process -Id $backend.Id -Timeout 5 -ErrorAction SilentlyContinue }
+$supervisorPython = Join-Path $root ".venv\Scripts\pythonw.exe"
+$supervisor = Start-Process -FilePath $supervisorPython -ArgumentList "-m server.supervisor" -WorkingDirectory $root -WindowStyle Hidden -PassThru
+Start-Sleep -Seconds 2
 try {
-    $healthy = $false
-    for ($i = 0; $i -lt 20; $i++) {
-        Start-Sleep -Milliseconds 500
-        try {
-            $headers = @{ "X-Local-Token" = $token }
-            $response = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -Headers $headers -TimeoutSec 2
-            if ($response.compatible -eq $true -and $response.api_version -eq 2) { $healthy = $true; break }
-        } catch { }
-    }
-    if (-not $healthy) { throw "Health check falhou em http://127.0.0.1:8765/health" }
-} finally {
-    if ($backend -and -not $backend.HasExited) { Stop-Process -Id $backend.Id -Force }
+    $headers = @{ "X-Local-Token" = $token }
+    $persistentHealth = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -Headers $headers -TimeoutSec 3
+    if ($persistentHealth.compatible -ne $true -or $persistentHealth.api_version -ne 2) { throw "Supervisor iniciou backend incompatível" }
+} catch {
+    if ($supervisor -and -not $supervisor.HasExited) { Stop-Process -Id $supervisor.Id -Force }
+    throw
 }
 
 $startup = [Environment]::GetFolderPath("Startup")

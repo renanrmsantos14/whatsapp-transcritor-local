@@ -25,6 +25,8 @@ test("painel expõe saúde e ações de instalação", () => {
   assert.match(installer, /ValidateOnly/);
   assert.match(installer, /Get-NetTCPConnection/);
   assert.match(installer, /ProcessName -notmatch "\^pythonw\?\$"/);
+  assert.match(installer, /server\\\.\(supervisor\|launcher\)/);
+  assert.match(installer, /persistentHealth/);
 });
 
 test("painel mantém acessibilidade e tema sem dependências externas", () => {
