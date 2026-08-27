@@ -26,6 +26,7 @@ O instalador cria inicialização silenciosa no login do Windows. Para diagnóst
 ## Comportamento
 
 - Somente notas recebidas e renderizadas são processadas automaticamente.
+- Ao clicar para escutar uma nota de voz, a extensão também captura e transcreve aquele áudio em reprodução, seja recebido ou enviado.
 - Áudios fora do DOM virtualizado aparecem quando forem carregados ao rolar.
 - Fila mantém uma transcrição por vez.
 - Cache fica em `chrome.storage.local`; áudio nunca é persistido pelo projeto.
@@ -45,4 +46,3 @@ O smoke test de modelo real é separado para não baixar pesos durante cada exec
 O WhatsApp Web não oferece API pública para áudio descriptografado. A extensão usa um hook de página e fallback estrutural; qualquer mudança de DOM pode exigir ajuste em `extension/selectors.js`.
 
 Status só pode ser **funcionando** após validação em WhatsApp Web autenticado com áudio real.
-

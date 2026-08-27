@@ -47,5 +47,11 @@
     return /download|baixar|descargar/i.test(button?.textContent || button?.getAttribute?.("aria-label") || "");
   }
 
-  globalThis.WTSelectors = { VOICE_HINTS, messageId, isVoiceNote, isOutgoing, rows, transportButton, isDownloadButton };
+  function rowForMedia(mediaId) {
+    if (!mediaId) return null;
+    const media = document.querySelector?.(`[data-wt-media-id="${mediaId}"]`);
+    return media?.closest?.('div[role="row"], div[data-id]') || null;
+  }
+
+  globalThis.WTSelectors = { VOICE_HINTS, messageId, isVoiceNote, isOutgoing, rows, rowForMedia, transportButton, isDownloadButton };
 })();

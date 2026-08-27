@@ -92,13 +92,13 @@
       return response.blob;
     } finally { await askPage("hold", { ms: 2000 }); await askPage("silence"); await askPage("disarm"); }
   }
-  async function process(row, ui) {
+  async function process(row, ui, initialBlob = null) {
     const id = S.messageId(row);
     const cached = await cacheGet(keyFor(id));
     if (cached) { render(ui, "Transcrição", cached.text); return; }
     await ensureHealth();
     render(ui, "Transcrevendo…");
-    const blob = await capture(row, ui);
+    const blob = initialBlob || await capture(row, ui);
     const hash = await hashBlob(blob);
     const hashCached = await cacheGet(`${CACHE_PREFIX}hash:${hash}`);
     if (hashCached) { render(ui, "Transcrição", hashCached.text); if (id) await cacheSet(hashCached, id, hash); return; }
@@ -114,7 +114,7 @@
     while (pending.length) {
       const job = pending.shift(); queued.delete(job.key);
       if (!job.row.isConnected) continue;
-      try { await process(job.row, job.ui); } catch (error) { render(job.ui, "Não foi possível transcrever.", error.message); }
+      try { await process(job.row, job.ui, job.blob); } catch (error) { render(job.ui, "Não foi possível transcrever.", error.message); }
     }
     active = false;
   }
@@ -125,8 +125,27 @@
     const key = rowKey(row);
     if (!force && queued.has(key)) return;
     if (force) pending.splice(0, pending.length, ...pending.filter((job) => job.key !== key));
-    queued.add(key); pending.push({ row, ui: { wrap: ui, status: ui.querySelector(".wt-status"), result: ui.querySelector(".wt-result"), copy: ui.querySelector(".wt-copy"), retry: ui.querySelector(".wt-retry") }, key }); drain();
+    queued.add(key); pending.push({ row, ui: { wrap: ui, status: ui.querySelector(".wt-status"), result: ui.querySelector(".wt-result"), copy: ui.querySelector(".wt-copy"), retry: ui.querySelector(".wt-retry") }, key, blob: null }); drain();
   }
+  function enqueueManual(row, blob) {
+    if (!S.isVoiceNote(row) || !blob?.size) return;
+    const existing = row.querySelector(".wt-wrap");
+    if (existing?.dataset.state === "busy") return;
+    let ui = existing || makeUI(row).wrap;
+    const key = rowKey(row);
+    if (queued.has(key)) return;
+    queued.add(key);
+    pending.push({ row, ui: { wrap: ui, status: ui.querySelector(".wt-status"), result: ui.querySelector(".wt-result"), copy: ui.querySelector(".wt-copy"), retry: ui.querySelector(".wt-retry") }, key, blob });
+    drain();
+  }
+
+  window.addEventListener("message", async (event) => {
+    if (event.source !== window || event.data?.__wt !== "playing") return;
+    const row = S.rowForMedia(event.data.mediaId);
+    if (!row || !S.isVoiceNote(row)) return;
+    const captured = await askPage("capture_playing", { mediaId: event.data.mediaId }, 10000);
+    if (captured.ok && captured.blob) enqueueManual(row, captured.blob);
+  });
   function scan() {
     for (const row of S.rows()) {
       const existing = row.querySelector(".wt-wrap");
