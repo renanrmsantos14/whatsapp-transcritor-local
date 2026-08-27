@@ -26,16 +26,21 @@
   async function grab(url) {
     if (!capture || capture.done || typeof url !== "string" || !url.startsWith("blob:")) return;
     capture.done = true;
-    const id = capture.id;
     try {
       const response = await fetch(url);
-      if (!response.ok) return respond(id, { ok: false, error: `blob fetch ${response.status}` });
+      if (!response.ok) return finishCapture({ ok: false, error: `blob fetch ${response.status}` });
       const blob = await response.blob();
-      if (!blob.size || blob.size > MAX_BYTES) return respond(id, { ok: false, error: "invalid blob" });
-      respond(id, { ok: true, blob, type: blob.type, size: blob.size });
+      if (!blob.size || blob.size > MAX_BYTES) return finishCapture({ ok: false, error: "invalid blob" });
+      finishCapture({ ok: true, blob, type: blob.type, size: blob.size });
     } catch (error) {
-      respond(id, { ok: false, error: String(error?.message || error) });
+      finishCapture({ ok: false, error: String(error?.message || error) });
     }
+  }
+
+  function finishCapture(result) {
+    if (!capture) return;
+    capture.result = result;
+    if (capture.waiterId) respond(capture.waiterId, result);
   }
 
   const originalCreate = URL.createObjectURL.bind(URL);
@@ -87,7 +92,14 @@
     if (action === "ping") return respond(id, { ok: true, version: 1 });
     if (action === "arm") {
       suppressUntil = Date.now() + (ms || 30000);
-      capture = { id, done: false };
+      capture = { done: false, result: null, waiterId: null };
+      silence();
+      return respond(id, { ok: true, armed: true });
+    }
+    if (action === "capture") {
+      if (!capture) return respond(id, { ok: false, error: "not armed" });
+      if (capture.result) return respond(id, capture.result);
+      capture.waiterId = id;
       return;
     }
     if (action === "hold") { suppressUntil = Date.now() + (ms || 2500); return respond(id, { ok: true }); }

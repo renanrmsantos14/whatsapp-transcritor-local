@@ -14,3 +14,11 @@ test("manifesto fixa versão, chave e storage", () => {
   const manifest = JSON.parse(fs.readFileSync("extension/manifest.json", "utf8"));
   assert.equal(manifest.version, "0.2.0"); assert.ok(manifest.key); assert.deepEqual(manifest.permissions, ["storage"]);
 });
+
+test("captura confirma mute antes de clicar no áudio", () => {
+  const content = fs.readFileSync("extension/content.js", "utf8");
+  const arm = content.indexOf('await askPage("arm"');
+  const click = content.indexOf("button.click()", arm);
+  assert.ok(arm >= 0 && click > arm);
+  assert.match(content.slice(arm, click), /askPage\("capture"/);
+});

@@ -12,7 +12,8 @@ globalThis.chrome = { runtime: { lastError: null, sendMessage(message, callback)
 addEventListener("message", (event) => {
   const data = event.data; if (data?.__wt !== "request") return;
   if (data.action === "ping") postMessage({ __wt:"response", id:data.id, ok:true }, "*");
-  else if (data.action === "arm") postMessage({ __wt:"response", id:data.id, ok:true, blob:new Blob(["OggSfixture"], { type:"audio/ogg" }) }, "*");
+  else if (data.action === "arm") postMessage({ __wt:"response", id:data.id, ok:true, armed:true }, "*");
+  else if (data.action === "capture") postMessage({ __wt:"response", id:data.id, ok:true, blob:new Blob(["OggSfixture"], { type:"audio/ogg" }) }, "*");
   else postMessage({ __wt:"response", id:data.id, ok:true }, "*");
 });
 globalThis.leaveChat = () => document.querySelector('[role="row"]').remove();

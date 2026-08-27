@@ -29,7 +29,8 @@
     render(ui, "Capturando", "Obtendo o áudio do WhatsApp…"); if (!(await askPage("ping", {}, 2000)).ok) throw problem("capture_failed", "Recarregue a aba do WhatsApp.", true);
     let button = S.transportButton(row); if (!button) throw problem("capture_failed", "Controle de áudio não encontrado.", true);
     if (S.isDownloadButton(button)) { button.click(); await sleep(500); button = S.transportButton(row); }
-    const pending = askPage("arm", { ms: 30000 }); button.click();
+    const armed = await askPage("arm", { ms: 30000 }, 2000); if (!armed.ok) throw problem("capture_failed", "Captura local não foi armada.", true);
+    const pending = askPage("capture", {}, 35000); button.click();
     try { const response = await pending; if (!response.ok || !response.blob) throw problem("capture_failed", "Áudio não capturado.", true); if (!row.isConnected || (expectedId && S.messageId(row) !== expectedId)) throw problem("canceled", "A conversa mudou durante a captura.", false); return response.blob; }
     finally { await askPage("hold", { ms: 2000 }, 2500); await askPage("silence", {}, 2500); await askPage("disarm", {}, 2500); }
   }
