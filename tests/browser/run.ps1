@@ -12,8 +12,8 @@ try {
     & $cli -s=wt-v02 press Tab | Out-Null
     & $cli -s=wt-v02 press Tab | Out-Null
     & $cli -s=wt-v02 press Enter | Out-Null
-    $completed = & $cli -s=wt-v02 run-code "async page => { await page.waitForTimeout(200); if (await page.evaluate(() => playClicks !== 0)) return 'played'; await page.evaluate(() => leaveChat()); await page.waitForTimeout(2500); await page.evaluate(() => returnToChat()); await page.waitForTimeout(500); return await page.evaluate(() => document.querySelector('[data-wt-control]').dataset.hasResult); }" --raw
-    if ($completed.Trim() -notmatch "true") { throw "Job não continuou após troca de conversa" }
+    $completed = & $cli -s=wt-v02 run-code "async page => { await page.waitForTimeout(200); if (await page.evaluate(() => playClicks !== 0)) return 'played'; await page.evaluate(() => leaveChat()); await page.waitForTimeout(300); await page.evaluate(() => returnToChat()); await page.waitForTimeout(150); if (await page.evaluate(() => document.querySelector('[data-wt-control]').dataset.state === 'Pronto')) return 'reset'; await page.waitForFunction(() => document.querySelector('[data-wt-control]').dataset.hasResult === 'true'); return 'true'; }" --raw
+    if ($completed.Trim() -notmatch "true") { throw "Estado visual do job não foi preservado após troca de conversa: $completed" }
     Write-Host "Browser fixture: captura, troca de conversa, cache e Shadow DOM validados."
 } finally {
     & $cli -s=wt-v02 close | Out-Null

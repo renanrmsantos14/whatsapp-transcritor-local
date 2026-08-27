@@ -5,7 +5,7 @@ let polls = 0, cached = null; globalThis.playClicks = 0;
 globalThis.chrome = { runtime: { lastError: null, sendMessage(message, callback) {
   if (message.type === "CACHE_GET") return callback({ ok:true, cached });
   if (message.type === "CREATE_JOB") return callback({ ok:true, job:{ job_id:"fixture-job" } });
-  if (message.type === "GET_JOB") { polls++; if (polls >= 2) cached = { text:"texto fixture", language:"pt" }; return callback({ ok:true, job: polls < 2 ? { state:"transcribing", stage:"transcribing" } : { state:"completed", result:cached } }); }
+  if (message.type === "GET_JOB") { polls++; if (polls >= 4) cached = { text:"texto fixture", language:"pt" }; return callback({ ok:true, job: polls < 4 ? { state:"transcribing", stage:"transcribing" } : { state:"completed", result:cached } }); }
   if (message.type === "CANCEL_JOB") return callback({ ok:true, job:{ state:"canceled" } });
   callback({ ok:false, error:{ message:"unexpected" } });
 } } };
