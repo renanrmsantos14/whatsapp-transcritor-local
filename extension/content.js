@@ -70,19 +70,31 @@
   function makeUI(row) {
     const wrap = textNode("div", "wt-wrap");
     const status = textNode("span", "wt-status");
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
     const result = textNode("div", "wt-result");
     const copy = textNode("button", "wt-copy", "Copiar");
     copy.type = "button";
+    copy.setAttribute("aria-label", "Copiar transcrição");
     copy.hidden = true;
     const retry = textNode("button", "wt-retry", "Tentar novamente");
     retry.type = "button";
+    retry.setAttribute("aria-label", "Tentar transcrever novamente");
     retry.hidden = true;
     const action = textNode("button", "wt-action", "Transcrever");
+    action.type = "button";
+    action.setAttribute("aria-label", "Transcrever este áudio");
     const bar = textNode("div", "wt-bar");
     bar.append(textNode("span", "wt-icon", "📝"), status, action, copy, retry);
     wrap.append(bar, result);
     ["click", "mousedown", "mouseup", "pointerdown", "dblclick"].forEach((type) => wrap.addEventListener(type, (event) => event.stopPropagation()));
-    copy.addEventListener("click", () => navigator.clipboard.writeText(result.textContent || ""));
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(result.textContent || "");
+        copy.textContent = "Copiado";
+        setTimeout(() => { copy.textContent = "Copiar"; }, 1200);
+      } catch (_) { report("copy_error"); }
+    });
     action.addEventListener("click", () => enqueueOnDemand(row));
     retry.addEventListener("click", () => enqueueOnDemand(row));
     row.appendChild(wrap);
@@ -97,6 +109,9 @@
     ui.copy.hidden = state !== "Transcrição";
     ui.retry.hidden = state !== "Não foi possível transcrever.";
     if (ui.action) ui.action.hidden = state !== "Pronto";
+    if (ui.action) ui.action.disabled = state !== "Pronto";
+    ui.copy.disabled = state !== "Transcrição";
+    ui.retry.disabled = state !== "Não foi possível transcrever.";
     ui.wrap.dataset.state = state === "Transcrição" ? "success" : state === "Não foi possível transcrever." ? "error" : state === "Pronto" ? "idle" : "busy";
   }
   function rowKey(row) { if (!rowIds.has(row)) rowIds.set(row, `row-${Date.now()}-${++fallbackRowSequence}`); return S.messageId(row) || rowIds.get(row); }
@@ -167,7 +182,7 @@
     ui = ui ? uiFromWrap(ui) : makeUI(row);
     const key = rowKey(row);
     if (queued.has(key)) return;
-    queued.add(key); pending.push({ row, ui, key, blob: null }); report("job_queued", { messageId: shortId(S.messageId(row)), source: "explicit_action", queue: pending.length }); drain();
+    queued.add(key); pending.push({ row, ui, key, blob: null }); render(ui, "Na fila…", "Aguardando o transcritor local."); report("job_queued", { messageId: shortId(S.messageId(row)), source: "explicit_action", queue: pending.length }); drain();
   }
   window.addEventListener("message", async (event) => {
     if (event.source === window && event.data?.__wt === "report_request") {
@@ -190,7 +205,10 @@
   }
   let scheduled = false;
   const schedule = () => { if (scheduled) return; scheduled = true; requestAnimationFrame(() => { scheduled = false; scan(); }); };
-  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
-  setInterval(() => { if (document.visibilityState === "visible") scan(); }, 4000);
+  const isRelevantNode = (node) => node.nodeType === Node.ELEMENT_NODE && !node.closest?.(".wt-wrap") && (node.matches?.('div[role="row"], div[data-id], audio, [data-icon="ptt-status"]') || node.querySelector?.('div[role="row"], div[data-id], audio, [data-icon="ptt-status"]'));
+  new MutationObserver((mutations) => {
+    if (mutations.some((mutation) => [...mutation.addedNodes].some(isRelevantNode))) schedule();
+  }).observe(document.body, { childList: true, subtree: true });
+  setInterval(() => { if (document.visibilityState === "visible") scan(); }, 8000);
   scan();
 })();
