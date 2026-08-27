@@ -5,6 +5,7 @@ import fs from "node:fs";
 const html = fs.readFileSync(new URL("../../extension/setup.html", import.meta.url), "utf8");
 const script = fs.readFileSync(new URL("../../extension/setup.js", import.meta.url), "utf8");
 const css = fs.readFileSync(new URL("../../extension/setup.css", import.meta.url), "utf8");
+const installer = fs.readFileSync(new URL("../../scripts/instalar.ps1", import.meta.url), "utf8");
 
 test("painel expõe saúde e ações de instalação", () => {
   for (const id of ["health-card", "model", "device", "queue", "retry", "install", "start", "reload", "extension-path", "update", "feedback"]) {
@@ -17,6 +18,8 @@ test("painel expõe saúde e ações de instalação", () => {
   assert.match(script, /iniciar\.bat/);
   assert.match(script, /Ctrl\+Shift\+R/);
   assert.match(html, /github\.com\/renanrmsantos14\/whatsapp-transcritor-local\/archive\/refs\/heads\/master\.zip/);
+  assert.match(installer, /WriteAllText/);
+  assert.match(installer, /UTF8Encoding\(\$false\)/);
 });
 
 test("painel mantém acessibilidade e tema sem dependências externas", () => {
