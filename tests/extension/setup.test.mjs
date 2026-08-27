@@ -23,6 +23,8 @@ test("painel expõe saúde e ações de instalação", () => {
   assert.match(installer, /UTF8Encoding\(\$false\)/);
   assert.doesNotMatch(installer, /utf8NoBom\.Dispose/);
   assert.match(installer, /ValidateOnly/);
+  assert.match(installer, /Get-NetTCPConnection/);
+  assert.match(installer, /ProcessName -notmatch "\^pythonw\?\$"/);
 });
 
 test("painel mantém acessibilidade e tema sem dependências externas", () => {

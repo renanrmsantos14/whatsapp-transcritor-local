@@ -69,6 +69,21 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 Push-Location $root
 try { & $venvPython -m server.warmup } finally { Pop-Location }
 
+$listeners = @(Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue)
+foreach ($listener in $listeners) {
+    $wtOwnerProcessId = [int]$listener.OwningProcess
+    if ($wtOwnerProcessId -le 0) { continue }
+    try {
+        $listenerProcess = Get-Process -Id $wtOwnerProcessId -ErrorAction Stop
+        if ($listenerProcess.ProcessName -notmatch "^pythonw?$" ) { throw "Porta 8765 ocupada por processo inesperado: $($listenerProcess.ProcessName) (PID $wtOwnerProcessId)" }
+        Stop-Process -Id $wtOwnerProcessId -Force
+        Wait-Process -Id $wtOwnerProcessId -Timeout 5 -ErrorAction SilentlyContinue
+    } catch [Microsoft.PowerShell.Commands.ProcessCommandException] { }
+}
+$portDeadline = (Get-Date).AddSeconds(10)
+while ((Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue) -and (Get-Date) -lt $portDeadline) { Start-Sleep -Milliseconds 250 }
+if (Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue) { throw "Porta 8765 permaneceu ocupada após encerrar o backend anterior" }
+
 $backend = Start-Process -FilePath $venvPython -ArgumentList "-m server.launcher" -WorkingDirectory $root -WindowStyle Hidden -PassThru
 try {
     $healthy = $false
