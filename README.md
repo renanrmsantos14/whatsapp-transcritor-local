@@ -13,6 +13,13 @@ O backend não exige FFmpeg instalado: o `faster-whisper` usa PyAV para decodifi
 
 ## Instalação
 
+Clone o repositório público e entre na pasta do projeto:
+
+```powershell
+git clone https://github.com/renanrmsantos14/whatsapp-transcritor-local.git
+cd whatsapp-transcritor-local
+```
+
 1. Execute `scripts\instalar.bat`.
 2. Aguarde o download e warm-up do modelo `small`.
 3. Abra `chrome://extensions`.
@@ -22,6 +29,20 @@ O backend não exige FFmpeg instalado: o `faster-whisper` usa PyAV para decodifi
 7. Abra `https://web.whatsapp.com/` e recarregue a aba.
 
 O instalador cria inicialização silenciosa no login do Windows. Para diagnóstico, execute `scripts\iniciar.bat`.
+
+## Atualização
+
+Dentro da pasta clonada, execute:
+
+```powershell
+git pull --ff-only
+```
+
+Isso atualiza os arquivos locais da extensão e do backend sem sobrescrever os arquivos gerados localmente (`.venv`, token, configuração e modelo). Depois do pull, o Chrome ainda precisa recarregar a extensão em `chrome://extensions`; como os scripts são injetados no WhatsApp Web, também recarregue a aba com `Ctrl + Shift + R`.
+
+O Chrome exige esse reload para mudanças no manifesto, service worker e content scripts quando a extensão foi instalada como **Carregar sem compactação**. O comando `git pull` sozinho não consegue clicar nessa interface do Chrome.
+
+Para executar o fluxo guiado, use `scripts\atualizar.bat`.
 
 ## Painel de controle
 
