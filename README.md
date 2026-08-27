@@ -44,6 +44,8 @@ O Chrome exige esse reload para mudanças no manifesto, service worker e content
 
 Para executar o fluxo guiado, use `scripts\atualizar.bat`.
 
+O painel da extensão também oferece **Baixar atualização**, que baixa o ZIP público da branch `master`. Extraia o conteúdo e use a nova pasta `extension` em **Carregar sem compactação**. Esse botão não substitui a pasta atual nem recarrega o Chrome sozinho; para uma cópia já clonada, `git pull --ff-only` continua sendo o caminho recomendado.
+
 ## Painel de controle
 
 Clique no ícone da extensão para abrir o painel local. Ele mostra se o backend e o modelo estão prontos, além da fila, dispositivo e ações de manutenção:

@@ -28,7 +28,7 @@ h1 { margin: 0; font-size: 19px; line-height: 1.1; letter-spacing: -.02em; }
 h2 { margin: 0; font-size: 13px; letter-spacing: -.01em; }
 .section-note { color: var(--muted); font-size: 10px; }
 .actions { display: grid; gap: 7px; }
-.action { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 51px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: inherit; cursor: pointer; text-align: left; }
+.action { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 51px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: inherit; cursor: pointer; text-align: left; text-decoration: none; }
 .action:hover { border-color: #b8bbb6; background: #fafaf9; }
 .action strong, .action small { display: block; }
 .action strong { font-size: 12px; font-weight: 700; }
