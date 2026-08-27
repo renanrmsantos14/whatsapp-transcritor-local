@@ -64,7 +64,7 @@ if (Test-Path $tokenPath) { $token = (Get-Content -LiteralPath $tokenPath -Raw).
 $config = @{ token = $token; projectRoot = $root; extensionPath = (Join-Path $root "extension") } | ConvertTo-Json -Compress
 $configPath = Join-Path $root "extension\local-config.js"
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-try { [IO.File]::WriteAllText($configPath, "globalThis.LOCAL_CONFIG = $config;", $utf8NoBom) } finally { $utf8NoBom.Dispose() }
+[IO.File]::WriteAllText($configPath, "globalThis.LOCAL_CONFIG = $config;", $utf8NoBom)
 
 Push-Location $root
 try { & $venvPython -m server.warmup } finally { Pop-Location }

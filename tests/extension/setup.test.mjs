@@ -21,6 +21,7 @@ test("painel expõe saúde e ações de instalação", () => {
   assert.match(html, /github\.com\/renanrmsantos14\/whatsapp-transcritor-local\/archive\/refs\/heads\/master\.zip/);
   assert.match(installer, /WriteAllText/);
   assert.match(installer, /UTF8Encoding\(\$false\)/);
+  assert.doesNotMatch(installer, /utf8NoBom\.Dispose/);
   assert.match(installer, /ValidateOnly/);
 });
 
