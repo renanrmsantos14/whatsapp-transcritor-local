@@ -15,10 +15,10 @@ test("manifesto fixa versão, chave e storage", () => {
   assert.equal(manifest.version, "0.2.0"); assert.ok(manifest.key); assert.deepEqual(manifest.permissions, ["storage"]);
 });
 
-test("captura confirma mute antes de clicar no áudio", () => {
+test("captura não clica em play", () => {
   const content = fs.readFileSync("extension/content.js", "utf8");
   const arm = content.indexOf('await askPage("arm"');
-  const click = content.indexOf("button.click()", arm);
-  assert.ok(arm >= 0 && click > arm);
-  assert.match(content.slice(arm, click), /askPage\("capture"/);
+  assert.ok(arm >= 0);
+  assert.equal(content.match(/button\.click\(\)/g)?.length, 1);
+  assert.match(content, /if \(S\.isDownloadButton\(button\)\) button\.click\(\)/);
 });

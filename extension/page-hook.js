@@ -39,8 +39,20 @@
 
   function finishCapture(result) {
     if (!capture) return;
+    if (capture.scanTimer) clearInterval(capture.scanTimer);
     capture.result = result;
     if (capture.waiterId) respond(capture.waiterId, result);
+  }
+
+  function scanCapture() {
+    if (!capture?.marker || capture.done) return;
+    const escaped = globalThis.CSS?.escape ? CSS.escape(capture.marker) : capture.marker.replace(/[^a-zA-Z0-9_-]/g, "");
+    const row = document.querySelector(`[data-wt-capture="${escaped}"]`);
+    if (!row) return;
+    for (const media of row.querySelectorAll("audio, video, source")) {
+      const source = media.currentSrc || media.src || media.getAttribute?.("src") || "";
+      if (source.startsWith("blob:")) { grab(source); return; }
+    }
   }
 
   const originalCreate = URL.createObjectURL.bind(URL);
@@ -88,12 +100,14 @@
 
   window.addEventListener("message", (event) => {
     if (event.source !== window || !event.data || event.data.__wt !== "request") return;
-    const { id, action, ms } = event.data;
+    const { id, action, ms, marker } = event.data;
     if (action === "ping") return respond(id, { ok: true, version: 1 });
     if (action === "arm") {
       suppressUntil = Date.now() + (ms || 30000);
-      capture = { done: false, result: null, waiterId: null };
+      capture = { done: false, result: null, waiterId: null, marker, scanTimer: null };
       silence();
+      scanCapture();
+      capture.scanTimer = setInterval(scanCapture, 100);
       return respond(id, { ok: true, armed: true });
     }
     if (action === "capture") {
@@ -104,7 +118,7 @@
     }
     if (action === "hold") { suppressUntil = Date.now() + (ms || 2500); return respond(id, { ok: true }); }
     if (action === "silence") { silence(); return respond(id, { ok: true }); }
-    if (action === "disarm") { capture = null; suppressUntil = 0; return respond(id, { ok: true }); }
+    if (action === "disarm") { if (capture?.scanTimer) clearInterval(capture.scanTimer); capture = null; suppressUntil = 0; return respond(id, { ok: true }); }
     respond(id, { ok: false, error: "unknown action" });
   });
 
