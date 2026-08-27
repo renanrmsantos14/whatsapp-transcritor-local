@@ -31,14 +31,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     api("/health").then((health) => sendResponse({ ok: true, health })).catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
-  if (message.type === "TRANSCRIBE_AUDIO" && message.audio instanceof Blob) {
+  const audio = message?.audio;
+  const blobLike = audio && typeof audio.size === "number" && typeof audio.arrayBuffer === "function";
+  if (message.type === "TRANSCRIBE_AUDIO" && blobLike) {
     const form = new FormData();
-    form.append("audio", message.audio, "whatsapp.ogg");
+    form.append("audio", audio instanceof Blob ? audio : new Blob([audio], { type: audio.type || "audio/ogg" }), "whatsapp.ogg");
     api("/transcribe", { method: "POST", body: form })
       .then((result) => sendResponse({ ok: true, result }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
+  log("message_rejected", { type: message?.type || "unknown", reason: "unknown_message_or_audio" });
   sendResponse({ ok: false, error: "unknown_message" });
   return false;
 });

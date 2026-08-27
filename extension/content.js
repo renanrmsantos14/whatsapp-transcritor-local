@@ -40,7 +40,11 @@
     window.postMessage({ __wt: "request", id, action, ...extra }, "*");
     setTimeout(() => { window.removeEventListener("message", listener); resolve({ ok: false, error: "timeout" }); }, timeout);
   });
-  const runtime = (message) => new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));
+  const runtime = (message) => new Promise((resolve) => chrome.runtime.sendMessage(message, (response) => {
+    const runtimeError = chrome.runtime.lastError;
+    if (runtimeError) { report("runtime_message_error", { type: message?.type, error: runtimeError.message }); resolve({ ok: false, error: runtimeError.message }); return; }
+    resolve(response);
+  }));
   const rememberVoiceInteraction = (event) => {
     const row = event.target?.closest?.('div[role="row"], div[data-id]');
     if (row && S.isVoiceNote(row)) lastVoiceInteraction = { row, at: Date.now() };
