@@ -50,14 +50,14 @@
     return ui;
   }
   async function restore(row, ui) { const response = await runtime({ type: "CACHE_GET", messageId: S.messageId(row) }); if (response?.cached && row.isConnected) { render(ui, "Transcrição", response.cached.text); revealIfLast(row, ui); } }
-  async function capture(row, ui, expectedId) {
+  async function capture(row, ui) {
     render(ui, "Capturando", "Obtendo o áudio do WhatsApp…"); if (!(await askPage("ping", {}, 2000)).ok) throw problem("capture_failed", "Recarregue a aba do WhatsApp.", true);
     const button = S.transportButton(row); if (!button) throw problem("capture_failed", "Controle de áudio não encontrado.", true);
     const marker = crypto.randomUUID(); row.dataset.wtCapture = marker;
     const armed = await askPage("arm", { ms: 30000, marker }, 2000); if (!armed.ok) throw problem("capture_failed", "Captura local não foi armada.", true);
     const pending = askPage("capture", {}, 35000);
     if (S.isDownloadButton(button)) button.click();
-    try { const response = await pending; if (!response.ok || !response.blob) throw problem("capture_failed", "Áudio não capturado.", true); if (!row.isConnected || (expectedId && S.messageId(row) !== expectedId)) throw problem("canceled", "A conversa mudou durante a captura.", false); return response.blob; }
+    try { const response = await pending; if (!response.ok || !response.blob) throw problem("capture_failed", "Áudio não capturado.", true); return response.blob; }
     finally { delete row.dataset.wtCapture; await askPage("disarm", {}, 2500); }
   }
   function problem(code, message, retryable) { return { code, message, retryable }; }
@@ -66,7 +66,7 @@
     const expectedId = S.messageId(row); if (active.has(expectedId)) return;
     active.add(expectedId); const tracked = { state: "Capturando", text: "Obtendo o áudio do WhatsApp…", jobId: null, canceled: false }; jobs.set(expectedId, tracked);
     try {
-      const blob = await capture(row, ui, expectedId), audioHash = await hashBlob(blob); if (tracked.canceled) return;
+      const blob = await capture(row, ui), audioHash = await hashBlob(blob); if (tracked.canceled) return;
       const cached = await runtime({ type: "CACHE_GET", messageId: expectedId, audioHash }); if (cached?.cached) { renderMessage(expectedId, "Transcrição", cached.cached.text); return; }
       while (true) {
         renderMessage(expectedId, "Na fila", "Aguardando o worker local…"); const created = await runtime({ type: "CREATE_JOB", audioBase64: await base64(blob), mime: blob.type });

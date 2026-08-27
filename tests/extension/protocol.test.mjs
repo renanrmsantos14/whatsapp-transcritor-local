@@ -21,4 +21,5 @@ test("captura não clica em play", () => {
   assert.ok(arm >= 0);
   assert.equal(content.match(/button\.click\(\)/g)?.length, 1);
   assert.match(content, /if \(S\.isDownloadButton\(button\)\) button\.click\(\)/);
+  assert.doesNotMatch(content, /A conversa mudou durante a captura/);
 });
