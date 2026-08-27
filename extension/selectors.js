@@ -14,10 +14,12 @@
     const rowBox = row?.getBoundingClientRect?.();
     const media = row?.querySelector?.(VOICE_HINTS) || row?.querySelector?.(AUDIO_HINTS) || transportButton(row);
     let node = media?.parentElement || null;
+    let geometric = null;
     let surface = null;
     while (node && node !== row) {
       const box = node.getBoundingClientRect?.();
       if (box && rowBox && box.width >= 180 && box.width < rowBox.width - 20 && box.height >= 40 && box.height <= 260) {
+        if (!geometric && box.width >= 240 && box.height >= 56) geometric = node;
         try {
           const style = getComputedStyle(node);
           const background = style.backgroundColor;
@@ -27,7 +29,7 @@
       }
       node = node.parentElement;
     }
-    return surface || row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR) || null;
+    return geometric || surface || row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR) || null;
   }
 
   function isVoiceNote(row) {

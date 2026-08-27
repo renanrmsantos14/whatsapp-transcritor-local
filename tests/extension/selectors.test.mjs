@@ -17,11 +17,12 @@ test("identifica direção pelo data-id sem classes frágeis", () => {
   assert.equal(selectors.isOutgoing(makeRow("false_abc")), false);
 });
 
-test("usa a superfície visual do áudio como âncora da bolha", () => {
+test("usa o primeiro ancestral com geometria de bolha de áudio", () => {
   const row = { getBoundingClientRect: () => ({ width: 800 }) };
   const outer = { parentElement: row, getBoundingClientRect: () => ({ width: 410, height: 150 }), visualStyle: { backgroundColor: "rgb(255, 255, 255)", borderTopLeftRadius: "8px" } };
   const bubble = { parentElement: outer, getBoundingClientRect: () => ({ width: 350, height: 120 }), visualStyle: { backgroundColor: "rgb(255, 255, 255)", borderTopLeftRadius: "8px" } };
-  const media = { parentElement: bubble };
+  const controls = { parentElement: bubble, getBoundingClientRect: () => ({ width: 320, height: 45 }), visualStyle: { backgroundColor: "transparent", borderTopLeftRadius: "0px" } };
+  const media = { parentElement: controls };
   row.querySelector = (selector) => selector.includes("ptt-status") ? media : null;
   row.closest = () => null;
   assert.equal(selectors.bubbleAnchor(row), bubble);
