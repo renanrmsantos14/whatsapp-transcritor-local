@@ -14,7 +14,21 @@
     </header>
     <section id="health-card" class="health-card" data-state="checking" aria-labelledby="health-title">
       <div class="health-heading"><span class="health-dot" aria-hidden="true"></span><div><p id="health-title" class="health-title">Verificando backend</p><p id="health-detail" class="health-detail">Aguarde um instante.</p></div></div>
-      <dl class="facts"><div><dt>Modelo</dt><dd id="model">—</dd></div><div><dt>Dispositivo</dt><dd id="device">—</dd></div><div><dt>Fila</dt><dd id="queue">—</dd></div></dl>
+      <dl class="facts"><div><dt>Versões</dt><dd id="versions">—</dd></div><div><dt>Modelo</dt><dd id="model">—</dd><dd id="device" hidden>—</dd></div><div><dt>Fila</dt><dd id="queue">—</dd></div></dl>
+    </section>
+    <section class="section" aria-labelledby="cache-title">
+      <div class="section-heading"><h2 id="cache-title">Dados locais</h2><span id="cache-usage" class="section-note">—</span></div>
+      <button id="clear-cache" class="button" type="button">Limpar transcrições</button>
+    </section>
+    <section class="section" aria-labelledby="glossary-title">
+      <div class="section-heading"><h2 id="glossary-title">Glossário local</h2><span class="section-note">até 200 termos</span></div>
+      <textarea id="glossary" rows="5" placeholder="Um termo por linha" aria-describedby="glossary-help"></textarea>
+      <p id="glossary-help" class="health-detail">A base TI já é incluída. Estes termos ficam só neste computador.</p>
+      <button id="save-glossary" class="button" type="button">Salvar glossário</button>
+    </section>
+    <section class="section" aria-labelledby="diagnostics-title">
+      <div class="section-heading"><h2 id="diagnostics-title">Diagnóstico</h2></div>
+      <button id="copy-diagnostics" class="button" type="button">Copiar relatório sem conteúdo</button>
     </section>
     <button id="retry" class="button button-primary" type="button">Testar novamente</button>
     <section class="section" aria-labelledby="actions-title">
@@ -30,6 +44,6 @@
     <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
     <footer class="privacy"><span aria-hidden="true">●</span> Áudio e texto ficam nesta máquina.</footer>
   </main>
-  <script src="local-config.js"></script><script src="setup.js"></script>
+  <script src="setup.js"></script>
 </body>
 </html>

@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "WhatsApp Transcritor Local",
-  "version": "0.1.0",
-  "description": "Transcreve notas de voz recebidas no WhatsApp Web localmente.",
+  "version": "0.2.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4klfEwxZwfkT39mKGQ4kT/RYlpjzp0pOAbVnfnNc+wVtpsmpcyqeLO5M+65UKV9lZO+MfZbFPe0L5w9xf7bcKMq4kBpAWLYR2dTB87oU8pKz6K2G0JRYu7uGPqsTzEEWLCMTzRbmK1y1YrJdmX7A1C6tiSvmA3Opp8mE9GcgMNZlPsWnpcnzyJPmkDPDZWT2/2MXjoz/DaiWX5NQcoyLwO+0fzBnKMxDQSKeHOOUCHhjDDraykaQsVafzSJKrP2rNhaUmMXPh8UyenHZEHS8Dd3bvZvxhpNatAlgRtJWBqGSLfeHmHhlZ/Hrh+Dhv8iro31AB5MjTOiKtS+VAdkBvQIDAQAB",
+  "description": "Transcreve notas de voz recebidas e enviadas no WhatsApp Web localmente.",
   "minimum_chrome_version": "142",
   "permissions": ["storage"],
   "host_permissions": [
@@ -24,8 +25,7 @@
     },
     {
       "matches": ["https://web.whatsapp.com/*"],
-      "js": ["selectors.js", "cache-policy.js", "content.js"],
-      "css": ["styles.css"],
+      "js": ["selectors.js", "protocol.js", "content.js"],
       "run_at": "document_idle",
       "all_frames": false
     }

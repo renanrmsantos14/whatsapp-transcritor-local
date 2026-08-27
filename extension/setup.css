@@ -37,4 +37,5 @@ h2 { margin: 0; font-size: 13px; letter-spacing: -.01em; }
 .feedback { min-height: 17px; margin: 12px 1px 0; color: var(--accent); font-size: 11px; }
 .privacy { display: flex; align-items: center; gap: 6px; margin-top: 9px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
 .privacy span { color: var(--accent); font-size: 9px; }
+textarea { box-sizing: border-box; width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 9px; background: var(--surface); color: inherit; font: 12px system-ui; }
 @media (prefers-color-scheme: dark) { :root { background: #181817; color: #f3f3ef; --muted: #a5a6a1; --line: #363733; --surface: #222321; --accent-soft: #1d3d32; } .health-card { background: #1d1e1c; } .button-primary { background: #f3f3ef; color: #181817; } .button-primary:hover { background: #dcdcd6; } .action:hover { border-color: #5a5c56; background: #292a27; } }

@@ -12,14 +12,16 @@ test("painel expõe saúde e ações de instalação", () => {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   assert.match(html, /role="status"/);
-  assert.match(html, /local-config\.js/);
+  assert.doesNotMatch(html, /local-config\.js/);
   assert.match(script, /HEALTH_CHECK/);
-  assert.match(script, /instalar\.bat/);
+  assert.match(script, /health\.queue \|\|/);
+  assert.match(script, /instalar\.ps1/);
   assert.match(script, /iniciar\.bat/);
   assert.match(script, /Ctrl\+Shift\+R/);
   assert.match(html, /github\.com\/renanrmsantos14\/whatsapp-transcritor-local\/archive\/refs\/heads\/master\.zip/);
   assert.match(installer, /WriteAllText/);
   assert.match(installer, /UTF8Encoding\(\$false\)/);
+  assert.match(installer, /ValidateOnly/);
 });
 
 test("painel mantém acessibilidade e tema sem dependências externas", () => {

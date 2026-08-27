@@ -1,0 +1,8 @@
+{
+  "name": "whatsapp-transcritor-local",
+  "private": true,
+  "version": "0.2.0",
+  "scripts": {
+    "test:browser": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/browser/run.ps1"
+  }
+}

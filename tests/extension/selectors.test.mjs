@@ -48,7 +48,8 @@ test("manifesto mantém permissões mínimas e worker como ponte local", () => {
   assert.equal(manifest.background.service_worker, "background.js");
   const background = fs.readFileSync(new URL("../../extension/background.js", import.meta.url), "utf8");
   assert.match(background, /const WT_API = "http:\/\/127\.0\.0\.1:8765"/);
-  assert.match(background, /const setup = message\?\.type === "HEALTH_CHECK" && !sender\.tab/);
+  assert.match(background, /if \(!sender\.tab\) return true/);
+  assert.match(background, /setAccessLevel/);
   assert.match(background, /audioBase64/);
   assert.doesNotMatch(background, /message\.url|fetch\(message/);
 });

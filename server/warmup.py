@@ -1,7 +1,7 @@
-from .app import app
+from .app import MODEL_DIR
+from .transcriber import LocalTranscriber
 
 
 if __name__ == "__main__":
-    app.state.transcriber.warmup()
+    LocalTranscriber(MODEL_DIR).warmup()
     print("Modelo Whisper pronto")
-

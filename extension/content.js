@@ -1,263 +1,63 @@
 (() => {
   "use strict";
-  const S = globalThis.WTSelectors;
-  const CACHE_POLICY = globalThis.WTCachePolicy;
-  const CACHE_PREFIX = "wt:v1:";
-  const CACHE_LIMIT = 1000;
-  const rowIds = new WeakMap();
-  const pending = [];
-  const queued = new Set();
-  const diagnostics = [];
-  let active = false;
-  let sequence = 0;
-  let fallbackRowSequence = 0;
-
-  const shortId = (value) => value ? `${String(value).slice(0, 12)}…` : "sem-id";
-  const report = (event, details = {}) => {
-    const entry = { at: new Date().toISOString(), event, ...details };
-    diagnostics.push(entry);
-    if (diagnostics.length > 200) diagnostics.shift();
-    console.info("[WT]", event, details);
-  };
-  globalThis.__WT_TRANSCRITOR_REPORT__ = () => {
-    console.group("[WT] relatório do transcritor local");
-    console.table(diagnostics);
-    console.info("Use __WT_TRANSCRITOR_REPORT__() novamente para atualizar. Áudio e texto não são registrados.");
-    console.groupEnd();
-    return diagnostics.slice();
-  };
-  report("content_loaded", { url: location.href.split("?")[0] });
-
+  const S = WTSelectors, controls = new WeakMap(), active = new Map();
+  const STYLE = `:host{display:block;font:12px system-ui;color:#111b21}.wrap{margin:4px 0;padding:7px 9px;border:1px solid #d8dfdf;border-radius:9px;background:#fff;max-width:390px}.bar{display:flex;gap:7px;align-items:center}.status{font-weight:650;flex:1}.result{white-space:pre-wrap;margin-top:6px;line-height:1.35}button{border:0;border-radius:7px;padding:5px 9px;cursor:pointer;background:#e6ecec;color:#111b21}button.primary{background:#0b6b5c;color:white}button[hidden]{display:none}.busy{opacity:.75}.error{border-color:#d9544d}.success{border-color:#3d927d}`;
+  const runtime = (message) => new Promise((resolve) => chrome.runtime.sendMessage(message, (response) => resolve(chrome.runtime.lastError ? { ok: false, error: { code: "backend_unavailable", message: chrome.runtime.lastError.message, retryable: true } } : response)));
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const askPage = (action, extra = {}, timeout = 5000) => new Promise((resolve) => {
-    const id = ++sequence;
-    const listener = (event) => {
-      if (event.source !== window || event.data?.__wt !== "response" || event.data.id !== id) return;
-      window.removeEventListener("message", listener);
-      resolve(event.data);
-    };
-    window.addEventListener("message", listener);
-    window.postMessage({ __wt: "request", id, action, ...extra }, "*");
-    setTimeout(() => { window.removeEventListener("message", listener); resolve({ ok: false, error: "timeout" }); }, timeout);
+  const askPage = (action, extra = {}, timeout = 35000) => new Promise((resolve) => {
+    const id = crypto.randomUUID(), listener = (event) => { if (event.source === window && event.data?.__wt === "response" && event.data.id === id) { clearTimeout(timer); removeEventListener("message", listener); resolve(event.data); } };
+    addEventListener("message", listener); postMessage({ __wt: "request", id, action, ...extra }, "*");
+    const timer = setTimeout(() => { removeEventListener("message", listener); resolve({ ok: false, error: "timeout" }); }, timeout);
   });
-  const runtime = (message) => new Promise((resolve) => chrome.runtime.sendMessage(message, (response) => {
-    const runtimeError = chrome.runtime.lastError;
-    if (runtimeError) { report("runtime_message_error", { type: message?.type, error: runtimeError.message }); resolve({ ok: false, error: runtimeError.message }); return; }
-    resolve(response);
-  }));
-  const keyFor = (id) => id ? `${CACHE_PREFIX}id:${id}` : null;
-  const hashBlob = async (blob) => {
-    const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  };
-  const blobPayload = async (blob) => {
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let binary = "";
-    for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-    return { audioBase64: btoa(binary), mime: blob.type || "audio/ogg" };
-  };
-  async function cacheGet(key) {
-    if (!key) return null;
-    const record = (await chrome.storage.local.get(key))[key] || null;
-    if (!record || CACHE_POLICY.isFresh(record)) return record;
-    await chrome.storage.local.remove(key);
-    report("cache_expired");
-    return null;
-  }
-  async function cacheSet(record, id, hash) {
-    const createdAt = Number(record.createdAt) || Date.now();
-    const value = { ...record, version: 2, createdAt, expiresAt: CACHE_POLICY.expiresAt(record) || createdAt + CACHE_POLICY.TTL_MS, lastAccessedAt: Date.now() };
-    const values = {};
-    if (id) values[keyFor(id)] = value;
-    if (hash) values[`${CACHE_PREFIX}hash:${hash}`] = value;
-    await chrome.storage.local.set(values);
-    const all = await chrome.storage.local.get(null);
-    const keys = Object.keys(all).filter((key) => key.startsWith(CACHE_PREFIX));
-    if (keys.length > CACHE_LIMIT * 2) await chrome.storage.local.remove(keys.sort((a, b) => (all[a].lastAccessedAt || 0) - (all[b].lastAccessedAt || 0)).slice(0, keys.length - CACHE_LIMIT * 2));
-  }
-  async function pruneExpiredCache() {
-    const all = await chrome.storage.local.get(null);
-    const expired = Object.keys(all).filter((key) => key.startsWith(CACHE_PREFIX) && !CACHE_POLICY.isFresh(all[key]));
-    if (expired.length) { await chrome.storage.local.remove(expired); report("cache_pruned", { count: expired.length }); }
-  }
-  const textNode = (tag, className, text) => { const node = document.createElement(tag); node.className = className; if (text != null) node.textContent = text; return node; };
-  function makeUI(row) {
-    const wrap = textNode("div", "wt-wrap");
-    const status = textNode("span", "wt-status");
-    status.setAttribute("role", "status");
-    status.setAttribute("aria-live", "polite");
-    const result = textNode("div", "wt-result");
-    const copy = textNode("button", "wt-copy", "Copiar");
-    copy.type = "button";
-    copy.setAttribute("aria-label", "Copiar transcrição");
-    copy.hidden = true;
-    const retry = textNode("button", "wt-retry", "Tentar novamente");
-    retry.type = "button";
-    retry.setAttribute("aria-label", "Tentar transcrever novamente");
-    retry.hidden = true;
-    const action = textNode("button", "wt-action", "Transcrever");
-    action.type = "button";
-    action.setAttribute("aria-label", "Transcrever este áudio");
-    const bar = textNode("div", "wt-bar");
-    bar.append(status, action, copy, retry);
-    wrap.append(bar, result);
-    ["click", "mousedown", "mouseup", "pointerdown", "dblclick"].forEach((type) => wrap.addEventListener(type, (event) => event.stopPropagation()));
-    copy.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(result.textContent || "");
-        copy.textContent = "Copiado";
-        setTimeout(() => { copy.textContent = "Copiar"; }, 1200);
-      } catch (_) { report("copy_error"); }
-    });
-    action.addEventListener("click", () => enqueueOnDemand(row));
-    retry.addEventListener("click", () => enqueueOnDemand(row));
-    row.appendChild(wrap);
-    wrap.dataset.messageId = S.messageId(row) || "";
-    const ui = { wrap, status, result, action, copy, retry };
-    syncPlacement(row, ui);
-    render(ui, "Pronto", "Clique em Transcrever. O áudio não será reproduzido automaticamente.");
-    restoreCached(row, ui);
-    return ui;
-  }
-  const uiFromWrap = (wrap) => ({ wrap, status: wrap.querySelector(".wt-status"), result: wrap.querySelector(".wt-result"), action: wrap.querySelector(".wt-action"), copy: wrap.querySelector(".wt-copy"), retry: wrap.querySelector(".wt-retry") });
+  const hashBlob = async (blob) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  async function base64(blob) { const bytes = new Uint8Array(await blob.arrayBuffer()); let value = ""; for (let i = 0; i < bytes.length; i += 32768) value += String.fromCharCode(...bytes.subarray(i, i + 32768)); return btoa(value); }
   function render(ui, state, text = "") {
-    ui.status.textContent = state;
-    ui.result.textContent = text;
-    ui.copy.hidden = state !== "Transcrição";
-    ui.retry.hidden = state !== "Não foi possível transcrever.";
-    if (ui.action) ui.action.hidden = state !== "Pronto";
-    if (ui.action) ui.action.disabled = state !== "Pronto";
-    ui.copy.disabled = state !== "Transcrição";
-    ui.retry.disabled = state !== "Não foi possível transcrever.";
-    ui.wrap.dataset.state = state === "Transcrição" ? "success" : state === "Não foi possível transcrever." ? "error" : state === "Pronto" ? "idle" : "busy";
+    ui.host.dataset.state = state; ui.host.dataset.hasResult = state === "Transcrição" ? "true" : "false";
+    ui.status.textContent = state; ui.result.textContent = text; ui.wrap.className = `wrap ${state === "Transcrição" ? "success" : state === "Erro" ? "error" : /Capturando|fila|Transcrevendo/.test(state) ? "busy" : ""}`;
+    ui.action.hidden = state !== "Pronto"; ui.cancel.hidden = !["Capturando", "Na fila", "Transcrevendo"].some((x) => state.startsWith(x)); ui.copy.hidden = state !== "Transcrição"; ui.retry.hidden = state !== "Erro";
   }
-  function syncPlacement(row, ui) {
-    const outgoing = S.isOutgoing(row);
-    ui.wrap.dataset.direction = outgoing ? "outgoing" : "incoming";
-    const anchor = S.bubbleAnchor(row);
-    const rowBox = row?.getBoundingClientRect?.();
-    const bubbleBox = anchor?.getBoundingClientRect?.();
-    if (!rowBox || !bubbleBox || rowBox.width <= 0 || bubbleBox.width < 120) return;
-    const width = Math.round(Math.min(390, bubbleBox.width));
-    const inset = Math.max(0, Math.round(outgoing ? rowBox.right - bubbleBox.right : bubbleBox.left - rowBox.left));
-    ui.wrap.style.width = `${width}px`;
-    if (outgoing) {
-      ui.wrap.style.marginLeft = "auto";
-      ui.wrap.style.marginRight = `${inset}px`;
-    } else {
-      ui.wrap.style.marginLeft = `${inset}px`;
-      ui.wrap.style.marginRight = "auto";
-    }
-    const placement = `${outgoing ? "out" : "in"}:${inset}:${width}`;
-    if (ui.wrap.dataset.placement !== placement) {
-      ui.wrap.dataset.placement = placement;
-      report("ui_placement", { direction: outgoing ? "outgoing" : "incoming", inset, width });
-    }
+  function createUI(row) {
+    const host = document.createElement("div"); host.dataset.wtControl = "true";
+    const root = host.attachShadow({ mode: "closed" }); root.innerHTML = `<style>${STYLE}</style><div class="wrap"><div class="bar"><span class="status" role="status" aria-live="polite"></span><button class="primary action">Transcrever</button><button class="cancel" hidden>Cancelar</button><button class="copy" hidden>Copiar</button><button class="retry" hidden>Tentar novamente</button></div><div class="result"></div></div>`;
+    const ui = { host, wrap: root.querySelector(".wrap"), status: root.querySelector(".status"), result: root.querySelector(".result"), action: root.querySelector(".action"), cancel: root.querySelector(".cancel"), copy: root.querySelector(".copy"), retry: root.querySelector(".retry"), jobId: null, canceled: false };
+    for (const type of ["click", "pointerdown", "mousedown", "mouseup"]) host.addEventListener(type, (event) => event.stopPropagation());
+    ui.action.onclick = ui.retry.onclick = () => run(row, ui); ui.cancel.onclick = () => cancel(ui); ui.copy.onclick = async () => { await navigator.clipboard.writeText(ui.result.textContent || ""); ui.copy.textContent = "Copiado"; setTimeout(() => ui.copy.textContent = "Copiar", 1000); };
+    row.append(host); controls.set(row, ui); render(ui, "Pronto", "Clique para transcrever localmente."); restore(row, ui); return ui;
   }
-  async function restoreCached(row, ui) {
-    const id = S.messageId(row);
-    const cached = await cacheGet(keyFor(id));
-    if (!cached || !ui.wrap.isConnected || ui.wrap.dataset.state !== "idle" || (id && S.messageId(row) !== id)) return;
-    report("cache_restore", { messageId: shortId(id) });
-    render(ui, "Transcrição", cached.text);
+  async function restore(row, ui) { const response = await runtime({ type: "CACHE_GET", messageId: S.messageId(row) }); if (response?.cached && row.isConnected) render(ui, "Transcrição", response.cached.text); }
+  async function capture(row, ui, expectedId) {
+    render(ui, "Capturando", "Obtendo o áudio do WhatsApp…"); if (!(await askPage("ping", {}, 2000)).ok) throw problem("capture_failed", "Recarregue a aba do WhatsApp.", true);
+    let button = S.transportButton(row); if (!button) throw problem("capture_failed", "Controle de áudio não encontrado.", true);
+    if (S.isDownloadButton(button)) { button.click(); await sleep(500); button = S.transportButton(row); }
+    const pending = askPage("arm", { ms: 30000 }); button.click();
+    try { const response = await pending; if (!response.ok || !response.blob) throw problem("capture_failed", "Áudio não capturado.", true); if (!row.isConnected || (expectedId && S.messageId(row) !== expectedId)) throw problem("canceled", "A conversa mudou durante a captura.", false); return response.blob; }
+    finally { await askPage("hold", { ms: 2000 }, 2500); await askPage("silence", {}, 2500); await askPage("disarm", {}, 2500); }
   }
-  function rowKey(row) { if (!rowIds.has(row)) rowIds.set(row, `row-${Date.now()}-${++fallbackRowSequence}`); return S.messageId(row) || rowIds.get(row); }
-  async function ensureHealth() {
-    report("health_check_start");
-    const response = await runtime({ type: "HEALTH_CHECK" });
-    if (!response?.ok || !response.health?.ready) {
-      report("health_check_error", { error: response?.error || "modelo não pronto" });
-      throw new Error("Transcritor local indisponível.");
-    }
-    report("health_check_ok", { device: response.health.device, queueDepth: response.health.queue_depth });
-  }
-  async function capture(row, ui) {
-    const expectedId = S.messageId(row);
-    report("capture_start", { messageId: shortId(expectedId), outgoing: S.isOutgoing(row) });
-    if (!row.isConnected) throw new Error("A mensagem saiu da conversa atual.");
-    const hook = await askPage("ping", {}, 2000);
-    if (!hook.ok) { report("capture_hook_error", { error: hook.error || "ping timeout" }); throw new Error("Recarregue a aba do WhatsApp para ativar a captura."); }
-    const button = S.transportButton(row);
-    if (!button) { report("capture_button_missing", { messageId: shortId(expectedId) }); throw new Error("Controle de áudio não encontrado."); }
-    if (S.isDownloadButton(button)) { report("capture_download_click", { messageId: shortId(expectedId) }); render(ui, "Transcrevendo…"); button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true })); button.click(); await sleep(500); }
-    const captured = askPage("arm", { ms: 30000 }, 35000);
-    const playButton = S.transportButton(row);
-    if (!playButton) { report("capture_play_button_missing", { messageId: shortId(expectedId) }); throw new Error("Controle de reprodução não encontrado."); }
-    report("capture_play_click", { messageId: shortId(expectedId) });
-    playButton.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true }));
-    playButton.click();
+  function problem(code, message, retryable) { return { code, message, retryable }; }
+  async function cancel(ui) { ui.canceled = true; if (ui.jobId) await runtime({ type: "CANCEL_JOB", jobId: ui.jobId }); render(ui, "Cancelado", "Transcrição cancelada."); }
+  async function run(row, ui, attempt = 0) {
+    if (active.has(row)) return; active.set(row, true); ui.canceled = false; const expectedId = S.messageId(row);
     try {
-      const response = await captured;
-      if (!response.ok || !response.blob) { report("capture_error", { messageId: shortId(expectedId), error: response.error || "sem blob" }); throw new Error(response.error || "Áudio não capturado."); }
-      if (!row.isConnected || (expectedId && S.messageId(row) !== expectedId)) throw new Error("A conversa mudou durante a captura.");
-      report("capture_ok", { messageId: shortId(expectedId), bytes: response.blob.size, mime: response.blob.type || "desconhecido" });
-      return response.blob;
-    } finally { await askPage("hold", { ms: 2000 }); await askPage("silence"); await askPage("disarm"); }
+      const blob = await capture(row, ui, expectedId), audioHash = await hashBlob(blob); if (ui.canceled) return;
+      const cached = await runtime({ type: "CACHE_GET", messageId: expectedId, audioHash }); if (cached?.cached) { render(ui, "Transcrição", cached.cached.text); return; }
+      while (true) {
+        render(ui, "Na fila", "Aguardando o worker local…"); const created = await runtime({ type: "CREATE_JOB", audioBase64: await base64(blob), mime: blob.type });
+        if (!created?.ok) throw created.error; ui.jobId = created.job.job_id;
+        const started = Date.now();
+        while (!ui.canceled) {
+          const response = await runtime({ type: "GET_JOB", jobId: ui.jobId, messageId: expectedId, audioHash }); if (!response?.ok) throw response.error; const job = response.job;
+          if (!row.isConnected || (expectedId && S.messageId(row) !== expectedId)) { await cancel(ui); return; }
+          if (job.state === "completed") { render(ui, "Transcrição", job.result.text); return; }
+          if (job.state === "failed") throw job.error; if (job.state === "canceled") { render(ui, "Cancelado", "Transcrição cancelada."); return; }
+          render(ui, `Transcrevendo · ${Math.floor((Date.now() - started) / 1000)}s`, job.stage === "preparing" ? "Preparando modelo…" : "Processando localmente…"); await sleep(Date.now() - started < 10000 ? 1000 : 2000);
+        }
+        return;
+      }
+    } catch (error) {
+      if (error?.retryable && attempt < 1 && !ui.canceled) { active.delete(row); return run(row, ui, attempt + 1); }
+      if (!ui.canceled) render(ui, "Erro", error?.message || "Não foi possível transcrever.");
+    } finally { ui.jobId = null; active.delete(row); }
   }
-  async function process(row, ui, initialBlob = null) {
-    const id = S.messageId(row);
-    const cached = await cacheGet(keyFor(id));
-    if (cached) { report("cache_hit", { messageId: shortId(id) }); render(ui, "Transcrição", cached.text); return; }
-    report("transcription_start", { messageId: shortId(id), source: initialBlob ? "manual_play" : "explicit_action" });
-    await ensureHealth();
-    render(ui, "Transcrevendo…");
-    const blob = initialBlob || await capture(row, ui);
-    const hash = await hashBlob(blob);
-    const hashCached = await cacheGet(`${CACHE_PREFIX}hash:${hash}`);
-    if (hashCached) { report("hash_cache_hit", { messageId: shortId(id), audioHash: hash.slice(0, 12) }); render(ui, "Transcrição", hashCached.text); if (id) await cacheSet(hashCached, id, hash); return; }
-    report("backend_request", { messageId: shortId(id), bytes: blob.size, mime: blob.type || "desconhecido" });
-    const response = await runtime({ type: "TRANSCRIBE_AUDIO", ...(await blobPayload(blob)) });
-    if (!response?.ok || !response.result?.success) { report("backend_error", { messageId: shortId(id), error: response?.error || "resposta inválida" }); throw new Error(response?.error || "Backend indisponível."); }
-    const record = { version: 1, messageId: id, audioHash: hash, text: response.result.text, language: response.result.language, createdAt: Date.now() };
-    await cacheSet(record, id, hash);
-    report("transcription_ok", { messageId: shortId(id), chars: record.text.length, language: record.language });
-    render(ui, "Transcrição", record.text);
-  }
-  async function drain() {
-    if (active) return;
-    active = true;
-    while (pending.length) {
-      const job = pending.shift(); queued.delete(job.key);
-      if (!job.row.isConnected) continue;
-      try { await process(job.row, job.ui, job.blob); } catch (error) { report("job_error", { messageId: shortId(S.messageId(job.row)), error: error.message }); render(job.ui, "Não foi possível transcrever.", error.message); }
-    }
-    active = false;
-  }
-  function enqueueOnDemand(row) {
-    if (!S.isVoiceNote(row)) return;
-    let ui = row.querySelector(".wt-wrap");
-    ui = ui ? uiFromWrap(ui) : makeUI(row);
-    const key = rowKey(row);
-    if (queued.has(key)) return;
-    queued.add(key); pending.push({ row, ui, key, blob: null }); render(ui, "Na fila…", "Aguardando o transcritor local."); report("job_queued", { messageId: shortId(S.messageId(row)), source: "explicit_action", queue: pending.length }); drain();
-  }
-  window.addEventListener("message", async (event) => {
-    if (event.source === window && event.data?.__wt === "report_request") {
-      report("report_requested");
-      console.group("[WT] relatório do transcritor local");
-      console.table(diagnostics);
-      console.info("Áudio, texto e token não são registrados.");
-      console.groupEnd();
-      return;
-    }
-  });
-  function scan() {
-    for (const row of S.rows()) {
-      const existing = row.querySelector(".wt-wrap");
-      const id = S.messageId(row) || "";
-      if (existing && existing.dataset.messageId === id && existing.querySelector(".wt-action")) { syncPlacement(row, uiFromWrap(existing)); continue; }
-      if (existing) existing.remove();
-      makeUI(row);
-    }
-  }
-  let scheduled = false;
-  const schedule = () => { if (scheduled) return; scheduled = true; requestAnimationFrame(() => { scheduled = false; scan(); }); };
-  const isRelevantNode = (node) => node.nodeType === Node.ELEMENT_NODE && !node.closest?.(".wt-wrap") && (node.matches?.('div[role="row"], div[data-id], audio, [data-icon="ptt-status"]') || node.querySelector?.('div[role="row"], div[data-id], audio, [data-icon="ptt-status"]'));
-  new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => [...mutation.addedNodes].some(isRelevantNode))) schedule();
-  }).observe(document.body, { childList: true, subtree: true });
-  window.addEventListener("resize", schedule, { passive: true });
-  setInterval(() => { if (document.visibilityState === "visible") scan(); }, 8000);
-  pruneExpiredCache().catch(() => report("cache_prune_error"));
-  scan();
+  function scan() { for (const row of S.rows()) if (!controls.has(row) || !controls.get(row).host.isConnected) createUI(row); }
+  new MutationObserver(() => requestAnimationFrame(scan)).observe(document.body, { childList: true, subtree: true }); scan();
 })();

@@ -15,5 +15,7 @@ logs/
 *.log
 *.tmp
 *.part
+dist/
+.playwright-cli/
 skill-observations/
 Thumbs.db

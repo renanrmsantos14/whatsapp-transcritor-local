@@ -63,6 +63,12 @@
     });
   }
 
+  function diagnostic(row) {
+    if (row?.querySelector?.(VOICE_HINTS)) return "voice_hint";
+    if (row?.querySelector?.(AUDIO_HINTS)) return "audio_hint";
+    return isVoiceNote(row) ? "structural_fallback" : "not_voice";
+  }
+
   function transportButton(row) {
     const buttons = [...(row?.querySelectorAll?.("button") || [])].filter((button) => !button.closest?.(".wt-wrap"));
     if (!buttons.length) return null;
@@ -86,5 +92,5 @@
     return media?.closest?.('div[role="row"], div[data-id]') || null;
   }
 
-  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, bubbleAnchor, isVoiceNote, isOutgoing, rows, rowForMedia, transportButton, isDownloadButton };
+  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, bubbleAnchor, isVoiceNote, isOutgoing, rows, rowForMedia, transportButton, isDownloadButton, diagnostic };
 })();

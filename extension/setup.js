@@ -1,63 +1,23 @@
-(function () {
+(() => {
   "use strict";
-  const config = globalThis.LOCAL_CONFIG || {};
   const $ = (id) => document.getElementById(id);
-  const healthCard = $("health-card");
-  const healthTitle = $("health-title");
-  const healthDetail = $("health-detail");
-  const model = $("model");
-  const device = $("device");
-  const queue = $("queue");
-  const feedback = $("feedback");
-
-  function setFeedback(message, error = false) {
-    feedback.textContent = message;
-    feedback.style.color = error ? "var(--danger)" : "var(--accent)";
-    if (message) window.setTimeout(() => { if (feedback.textContent === message) feedback.textContent = ""; }, 4500);
-  }
-  function sendHealth() {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({ type: "HEALTH_CHECK" }, (response) => {
-        const runtimeError = chrome.runtime.lastError;
-        if (runtimeError) { reject(new Error(runtimeError.message)); return; }
-        if (!response?.ok) { reject(new Error(response?.error || "Backend indisponível")); return; }
-        resolve(response.health);
-      });
-    });
-  }
-  function renderHealth(health) {
-    const ready = Boolean(health?.ready);
-    healthCard.dataset.state = ready ? "ready" : "error";
-    healthTitle.textContent = ready ? "Backend pronto" : "Modelo ainda não está pronto";
-    healthDetail.textContent = ready ? "Pode abrir o WhatsApp Web." : "Execute instalar ou atualizar para preparar o modelo.";
-    model.textContent = health?.model || "small";
-    device.textContent = health?.device || "cpu";
-    queue.textContent = String(health?.queue_depth ?? 0);
-    console.info("[WT setup] health_check_ok", { ready, device: health?.device, queueDepth: health?.queue_depth });
-  }
-  function renderError(error) {
-    healthCard.dataset.state = "error";
-    healthTitle.textContent = "Backend indisponível";
-    healthDetail.textContent = "Inicie o serviço local e teste novamente.";
-    model.textContent = "—"; device.textContent = "—"; queue.textContent = "—";
-    console.warn("[WT setup] health_check_error", error.message);
-  }
+  const send = (message) => new Promise((resolve, reject) => chrome.runtime.sendMessage(message, (response) => chrome.runtime.lastError || !response?.ok ? reject(new Error(chrome.runtime.lastError?.message || response?.error?.message || "Falha local")) : resolve(response)));
+  let lastDiagnostics = null;
+  function feedback(text, bad = false) { $("feedback").textContent = text; $("feedback").style.color = bad ? "var(--danger)" : "var(--accent)"; }
   async function refresh() {
-    healthCard.dataset.state = "checking";
-    healthTitle.textContent = "Verificando backend";
-    healthDetail.textContent = "Aguarde um instante.";
-    try { renderHealth(await sendHealth()); } catch (error) { renderError(error); }
+    try {
+      const [{ health }, { diagnostics }, { settings, extensionVersion }] = await Promise.all([send({ type: "HEALTH_CHECK" }), send({ type: "DIAGNOSTICS_GET" }), send({ type: "SETTINGS_GET" })]);
+      const queueState = health.queue || { depth: health.queue_depth ?? 0, capacity: 3 };
+      $("health-card").dataset.state = health.compatible ? "ready" : "error"; $("health-title").textContent = health.compatible ? "Backend pronto" : "Versão incompatível"; $("health-detail").textContent = `API ${health.api_version} · ${health.device}`;
+      $("versions").textContent = `${extensionVersion} / ${health.backend_version || "0.1.x"}`; $("model").textContent = health.model?.profile || health.model || "small/int8"; $("device").textContent = health.device || "cpu"; $("queue").textContent = `${queueState.depth}/${queueState.capacity}`;
+      $("cache-usage").textContent = `${diagnostics.cacheCount}/500 · ${(diagnostics.cacheBytes / 1048576).toFixed(2)} MB`; $("glossary").value = settings.glossary.join("\n"); lastDiagnostics = { health, diagnostics, extensionVersion };
+    } catch (error) { $("health-card").dataset.state = "error"; $("health-title").textContent = "Backend indisponível"; $("health-detail").textContent = "Inicie o serviço local e teste novamente."; feedback(error.message, true); }
   }
-  async function copy(value, successMessage) {
-    try { await navigator.clipboard.writeText(value); setFeedback(successMessage); console.info("[WT setup] clipboard_copy", { action: successMessage }); }
-    catch (error) { setFeedback("Não foi possível copiar. Abra a pasta do projeto manualmente.", true); console.warn("[WT setup] clipboard_error", error.message); }
-  }
-  function rootPath() { return typeof config.projectRoot === "string" && config.projectRoot ? config.projectRoot : ""; }
-  function scriptPath(name) { return rootPath() ? `${rootPath()}\\scripts\\${name}` : `scripts\\${name}`; }
-  $("retry").addEventListener("click", refresh);
-  $("install").addEventListener("click", () => copy(`& "${scriptPath("instalar.bat")}"`, "Comando de instalação copiado."));
-  $("start").addEventListener("click", () => copy(`& "${scriptPath("iniciar.bat")}"`, "Comando para iniciar o backend copiado."));
-  $("reload").addEventListener("click", () => copy("Ctrl+Shift+R", "Atalho de recarga copiado. Use-o na aba do WhatsApp Web."));
-  $("extension-path").addEventListener("click", () => copy(config.extensionPath || "extension", "Caminho da extensão copiado."));
+  $("retry").onclick = refresh;
+  $("clear-cache").onclick = async () => { await send({ type: "CACHE_CLEAR" }); feedback("Cache limpo."); refresh(); };
+  $("save-glossary").onclick = async () => { try { await send({ type: "SETTINGS_UPDATE", settings: { glossary: $("glossary").value.split(/\r?\n/) } }); feedback("Glossário salvo."); } catch (error) { feedback(error.message, true); } };
+  $("copy-diagnostics").onclick = async () => { await navigator.clipboard.writeText(JSON.stringify(lastDiagnostics, null, 2)); feedback("Relatório copiado."); };
+  const copy = async (value, message) => { await navigator.clipboard.writeText(value); feedback(message); };
+  $("install").onclick = () => copy("powershell -File scripts\\instalar.ps1", "Comando copiado."); $("start").onclick = () => copy("scripts\\iniciar.bat", "Comando copiado."); $("reload").onclick = () => copy("Ctrl+Shift+R", "Atalho copiado."); $("extension-path").onclick = () => copy("extension", "Caminho relativo copiado.");
   refresh();
 })();

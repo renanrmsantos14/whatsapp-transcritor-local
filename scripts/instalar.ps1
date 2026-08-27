@@ -1,5 +1,27 @@
+[CmdletBinding()]
+param([switch]$ValidateOnly)
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+$required = @("server\app.py", "server\jobs.py", "server\supervisor.py", "server\requirements.lock", "extension\manifest.json", "scripts\iniciar-silencioso.vbs")
+foreach ($relative in $required) { if (-not (Test-Path (Join-Path $root $relative))) { throw "Arquivo obrigatório ausente: $relative" } }
+$manifest = Get-Content (Join-Path $root "extension\manifest.json") -Raw | ConvertFrom-Json
+if ($manifest.version -ne "0.2.0" -or -not $manifest.key) { throw "Manifesto v0.2.0 inválido" }
+if ($ValidateOnly) { Write-Host "Validação do instalador concluída: v0.2.0"; exit 0 }
+$installRoot = Join-Path $env:LOCALAPPDATA "Betinhos\WhatsAppTranscritor"
+if ([IO.Path]::GetFullPath($root).TrimEnd("\") -ne [IO.Path]::GetFullPath($installRoot).TrimEnd("\")) {
+    $backupRoot = Join-Path $env:LOCALAPPDATA "Betinhos\WhatsAppTranscritorBackup"
+    if (Test-Path $installRoot) {
+        New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
+        $backup = Join-Path $backupRoot (Get-Date -Format "yyyyMMdd-HHmmss")
+        Copy-Item -LiteralPath $installRoot -Destination $backup -Recurse -Force
+    }
+    foreach ($folder in @("server", "extension", "scripts")) { New-Item -ItemType Directory -Force -Path (Join-Path $installRoot $folder) | Out-Null }
+    Copy-Item -Path (Join-Path $root "server\*.py"), (Join-Path $root "server\requirements.*") -Destination (Join-Path $installRoot "server") -Force
+    Get-ChildItem (Join-Path $root "extension") -File | Where-Object Name -ne "local-config.js" | Copy-Item -Destination (Join-Path $installRoot "extension") -Force
+    Copy-Item -Path (Join-Path $root "scripts\*") -Destination (Join-Path $installRoot "scripts") -Force
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $installRoot "scripts\instalar.ps1")
+    exit $LASTEXITCODE
+}
 $pythonVersion = "3.13.15"
 $pythonUrl = "https://www.python.org/ftp/python/$pythonVersion/python-3.13.15-amd64.exe"
 $pythonSha256 = "edec09c4853aeae9ac36efb8c9f95b6b8e2fee65eee56d9767a8b7c69c574403"
@@ -28,14 +50,17 @@ if ($freeGb -lt 2) { Write-Warning "RAM livre abaixo de 2 GB ($freeGb GB). O mod
 $venvPython = Join-Path $root ".venv\Scripts\python.exe"
 if (-not (Test-Path $venvPython)) { & $pythonExe -m venv (Join-Path $root ".venv") }
 & $venvPython -m pip install --upgrade pip
-& $venvPython -m pip install -r (Join-Path $root "server\requirements.txt")
+& $venvPython -m pip install --require-hashes -r (Join-Path $root "server\requirements.lock")
 
 Add-Type -AssemblyName System.Security
-$bytes = New-Object byte[] 32
-$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
-$token = [Convert]::ToBase64String($bytes).TrimEnd("=").Replace("+", "-").Replace("/", "_")
-Set-Content -LiteralPath (Join-Path $root "server\.local-token") -Value $token -Encoding ascii -NoNewline
+$tokenPath = Join-Path $root "server\.local-token"
+if (Test-Path $tokenPath) { $token = (Get-Content -LiteralPath $tokenPath -Raw).Trim() } else {
+    $bytes = New-Object byte[] 32
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+    $token = [Convert]::ToBase64String($bytes).TrimEnd("=").Replace("+", "-").Replace("/", "_")
+    Set-Content -LiteralPath $tokenPath -Value $token -Encoding ascii -NoNewline
+}
 $config = @{ token = $token; projectRoot = $root; extensionPath = (Join-Path $root "extension") } | ConvertTo-Json -Compress
 $configPath = Join-Path $root "extension\local-config.js"
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -52,7 +77,7 @@ try {
         try {
             $headers = @{ "X-Local-Token" = $token }
             $response = Invoke-RestMethod -Uri "http://127.0.0.1:8765/health" -Headers $headers -TimeoutSec 2
-            if ($response.status -eq "ok") { $healthy = $true; break }
+            if ($response.compatible -eq $true -and $response.api_version -eq 2) { $healthy = $true; break }
         } catch { }
     }
     if (-not $healthy) { throw "Health check falhou em http://127.0.0.1:8765/health" }
