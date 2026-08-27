@@ -8,6 +8,7 @@
   let suppressUntil = 0;
   let sequence = 0;
   let mediaSequence = 0;
+  const log = (event, details = {}) => console.info("[WT hook]", event, details);
 
   const respond = (id, payload) => window.postMessage({ __wt: "response", id, ...payload }, "*");
   const suppressing = () => Date.now() < suppressUntil;
@@ -111,6 +112,9 @@
     if (action === "disarm") { capture = null; suppressUntil = 0; return respond(id, { ok: true }); }
     respond(id, { ok: false, error: "unknown action" });
   });
+
+  globalThis.__WT_TRANSCRITOR_REPORT__ = () => window.postMessage({ __wt: "report_request" }, "*");
+  log("hook_loaded");
 
   globalThis.__WT_HOOK_VERSION = ++sequence;
 })();
