@@ -7,6 +7,7 @@ __pycache__/
 data/models/
 data/*.db
 data/*.json
+data/*.lock
 server/.local-token
 extension/local-config.js
 tests/fixtures/*.ogg
