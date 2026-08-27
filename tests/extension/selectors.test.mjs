@@ -19,7 +19,8 @@ test("identifica direção pelo data-id sem classes frágeis", () => {
 
 test("usa a superfície visual do áudio como âncora da bolha", () => {
   const row = { getBoundingClientRect: () => ({ width: 800 }) };
-  const bubble = { parentElement: row, getBoundingClientRect: () => ({ width: 350, height: 120 }), visualStyle: { backgroundColor: "rgb(255, 255, 255)", borderTopLeftRadius: "8px" } };
+  const outer = { parentElement: row, getBoundingClientRect: () => ({ width: 410, height: 150 }), visualStyle: { backgroundColor: "rgb(255, 255, 255)", borderTopLeftRadius: "8px" } };
+  const bubble = { parentElement: outer, getBoundingClientRect: () => ({ width: 350, height: 120 }), visualStyle: { backgroundColor: "rgb(255, 255, 255)", borderTopLeftRadius: "8px" } };
   const media = { parentElement: bubble };
   row.querySelector = (selector) => selector.includes("ptt-status") ? media : null;
   row.closest = () => null;

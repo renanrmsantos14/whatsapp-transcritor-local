@@ -22,7 +22,7 @@
           const style = getComputedStyle(node);
           const background = style.backgroundColor;
           const radius = parseFloat(style.borderTopLeftRadius) || 0;
-          if (background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)" && radius > 0) surface = node;
+          if (!surface && background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)" && radius > 0) surface = node;
         } catch (_) { }
       }
       node = node.parentElement;
