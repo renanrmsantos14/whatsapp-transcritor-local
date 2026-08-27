@@ -63,6 +63,13 @@
     });
   }
 
+  function isLastMessage(row, root = document) {
+    const id = messageId(row);
+    if (!id) return false;
+    const messageRows = [...(root.querySelectorAll?.('div[role="row"]') || [])].filter((candidate) => messageId(candidate));
+    return messageRows.length > 0 && messageId(messageRows[messageRows.length - 1]) === id;
+  }
+
   function diagnostic(row) {
     if (row?.querySelector?.(VOICE_HINTS)) return "voice_hint";
     if (row?.querySelector?.(AUDIO_HINTS)) return "audio_hint";
@@ -92,5 +99,5 @@
     return media?.closest?.('div[role="row"], div[data-id]') || null;
   }
 
-  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, bubbleAnchor, isVoiceNote, isOutgoing, rows, rowForMedia, transportButton, isDownloadButton, diagnostic };
+  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, bubbleAnchor, isVoiceNote, isOutgoing, isLastMessage, rows, rowForMedia, transportButton, isDownloadButton, diagnostic };
 })();

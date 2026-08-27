@@ -31,6 +31,12 @@
     ui.wrap.style.marginLeft = outgoing ? "auto" : `${inset}px`;
     ui.wrap.style.marginRight = outgoing ? `${inset}px` : "auto";
   }
+  function revealIfLast(row, ui) {
+    if (!S.isLastMessage(row)) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (row.isConnected && S.isLastMessage(row)) ui.host.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }));
+  }
   function createUI(row) {
     const host = document.createElement("div"); host.dataset.wtControl = "true";
     const root = host.attachShadow({ mode: "closed" }); root.innerHTML = `<style>${STYLE}</style><div class="wt-wrap"><div class="wt-bar"><span class="wt-status" role="status" aria-live="polite"></span><button class="wt-action">Transcrever</button><button class="wt-cancel" hidden>Cancelar</button><button class="wt-copy" hidden>Copiar</button><button class="wt-retry" hidden>Tentar novamente</button></div><div class="wt-result"></div></div>`;
@@ -38,12 +44,12 @@
     for (const type of ["click", "pointerdown", "mousedown", "mouseup"]) host.addEventListener(type, (event) => event.stopPropagation());
     const messageId = S.messageId(row);
     ui.action.onclick = ui.retry.onclick = () => run(row, ui); ui.cancel.onclick = () => cancel(messageId); ui.copy.onclick = async () => { await navigator.clipboard.writeText(ui.result.textContent || ""); ui.copy.textContent = "Copiado"; setTimeout(() => ui.copy.textContent = "Copiar", 1000); };
-    row.append(host); controls.set(row, ui); views.set(messageId, { row, ui }); syncPlacement(row, ui);
+    row.append(host); controls.set(row, ui); views.set(messageId, { row, ui }); syncPlacement(row, ui); revealIfLast(row, ui);
     const job = jobs.get(messageId);
     if (job) { ui.jobId = job.jobId; render(ui, job.state, job.text); } else { render(ui, "Pronto", "Clique em Transcrever. O áudio não será reproduzido."); restore(row, ui); }
     return ui;
   }
-  async function restore(row, ui) { const response = await runtime({ type: "CACHE_GET", messageId: S.messageId(row) }); if (response?.cached && row.isConnected) render(ui, "Transcrição", response.cached.text); }
+  async function restore(row, ui) { const response = await runtime({ type: "CACHE_GET", messageId: S.messageId(row) }); if (response?.cached && row.isConnected) { render(ui, "Transcrição", response.cached.text); revealIfLast(row, ui); } }
   async function capture(row, ui, expectedId) {
     render(ui, "Capturando", "Obtendo o áudio do WhatsApp…"); if (!(await askPage("ping", {}, 2000)).ok) throw problem("capture_failed", "Recarregue a aba do WhatsApp.", true);
     const button = S.transportButton(row); if (!button) throw problem("capture_failed", "Controle de áudio não encontrado.", true);

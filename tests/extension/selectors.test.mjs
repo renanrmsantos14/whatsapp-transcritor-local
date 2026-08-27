@@ -42,6 +42,14 @@ test("identifica áudio encaminhado por duração e controle de reprodução", (
   assert.equal(selectors.isVoiceNote(row), true);
 });
 
+test("identifica quando o áudio é a última mensagem do chat", () => {
+  const makeRow = (id) => ({ querySelector: () => null, closest: () => ({ getAttribute: () => id }) });
+  const first = makeRow("false_first"), last = makeRow("true_last");
+  const root = { querySelectorAll: () => [first, last] };
+  assert.equal(selectors.isLastMessage(first, root), false);
+  assert.equal(selectors.isLastMessage(last, root), true);
+});
+
 test("manifesto mantém permissões mínimas e worker como ponte local", () => {
   const manifest = JSON.parse(fs.readFileSync(new URL("../../extension/manifest.json", import.meta.url), "utf8"));
   assert.deepEqual(manifest.host_permissions, ["https://web.whatsapp.com/*", "http://127.0.0.1:8765/*"]);

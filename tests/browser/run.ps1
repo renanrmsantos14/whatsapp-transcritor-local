@@ -9,6 +9,8 @@ Start-Sleep -Milliseconds 700
 try {
     $created = & $cli -s=wt-v02 eval "() => Boolean(document.querySelector('[data-wt-control]')) && document.querySelector('[data-wt-control]').shadowRoot === null" --raw
     if ($created.Trim() -ne "true") { throw "Shadow DOM fechado não foi criado" }
+    $scrolled = & $cli -s=wt-v02 eval "() => transcriptScrolled" --raw
+    if ($scrolled.Trim() -ne "true") { throw "Bloco da última mensagem não foi revelado pelo scroll" }
     & $cli -s=wt-v02 press Tab | Out-Null
     & $cli -s=wt-v02 press Tab | Out-Null
     & $cli -s=wt-v02 press Enter | Out-Null
