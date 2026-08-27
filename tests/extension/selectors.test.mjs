@@ -17,6 +17,12 @@ test("identifica direção pelo data-id sem classes frágeis", () => {
   assert.equal(selectors.isOutgoing(makeRow("false_abc")), false);
 });
 
+test("usa o elemento data-id como âncora visual da bolha", () => {
+  const anchor = { getAttribute: () => "false_abc" };
+  const row = { querySelector: () => anchor, closest: () => null };
+  assert.equal(selectors.bubbleAnchor(row), anchor);
+});
+
 test("identifica nota de voz por hints semânticos", () => {
   const row = { querySelector: (selector) => selector.includes("ptt-status") ? {} : null };
   assert.equal(selectors.isVoiceNote(row), true);

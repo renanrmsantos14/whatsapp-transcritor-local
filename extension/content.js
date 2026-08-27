@@ -113,9 +113,9 @@
     retry.addEventListener("click", () => enqueueOnDemand(row));
     row.appendChild(wrap);
     wrap.dataset.messageId = S.messageId(row) || "";
-    wrap.dataset.direction = S.isOutgoing(row) ? "outgoing" : "incoming";
-    render({ wrap, status, result, action, copy, retry }, "Pronto", "Clique em Transcrever. O áudio não será reproduzido automaticamente.");
     const ui = { wrap, status, result, action, copy, retry };
+    syncPlacement(row, ui);
+    render(ui, "Pronto", "Clique em Transcrever. O áudio não será reproduzido automaticamente.");
     restoreCached(row, ui);
     return ui;
   }
@@ -130,6 +130,22 @@
     ui.copy.disabled = state !== "Transcrição";
     ui.retry.disabled = state !== "Não foi possível transcrever.";
     ui.wrap.dataset.state = state === "Transcrição" ? "success" : state === "Não foi possível transcrever." ? "error" : state === "Pronto" ? "idle" : "busy";
+  }
+  function syncPlacement(row, ui) {
+    const outgoing = S.isOutgoing(row);
+    ui.wrap.dataset.direction = outgoing ? "outgoing" : "incoming";
+    const anchor = S.bubbleAnchor(row);
+    const rowBox = row?.getBoundingClientRect?.();
+    const bubbleBox = anchor?.getBoundingClientRect?.();
+    if (!rowBox || !bubbleBox || rowBox.width <= 0 || bubbleBox.width < 120) return;
+    ui.wrap.style.width = `${Math.round(Math.min(390, bubbleBox.width))}px`;
+    if (outgoing) {
+      ui.wrap.style.marginLeft = "auto";
+      ui.wrap.style.marginRight = `${Math.max(0, Math.round(rowBox.right - bubbleBox.right))}px`;
+    } else {
+      ui.wrap.style.marginLeft = `${Math.max(0, Math.round(bubbleBox.left - rowBox.left))}px`;
+      ui.wrap.style.marginRight = "auto";
+    }
   }
   async function restoreCached(row, ui) {
     const id = S.messageId(row);
@@ -222,7 +238,7 @@
     for (const row of S.rows()) {
       const existing = row.querySelector(".wt-wrap");
       const id = S.messageId(row) || "";
-      if (existing && existing.dataset.messageId === id && existing.querySelector(".wt-action")) continue;
+      if (existing && existing.dataset.messageId === id && existing.querySelector(".wt-action")) { syncPlacement(row, uiFromWrap(existing)); continue; }
       if (existing) existing.remove();
       makeUI(row);
     }
@@ -233,6 +249,7 @@
   new MutationObserver((mutations) => {
     if (mutations.some((mutation) => [...mutation.addedNodes].some(isRelevantNode))) schedule();
   }).observe(document.body, { childList: true, subtree: true });
+  window.addEventListener("resize", schedule, { passive: true });
   setInterval(() => { if (document.visibilityState === "visible") scan(); }, 8000);
   pruneExpiredCache().catch(() => report("cache_prune_error"));
   scan();

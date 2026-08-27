@@ -10,6 +10,10 @@
     return node?.getAttribute?.("data-id") || null;
   }
 
+  function bubbleAnchor(row) {
+    return row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR) || null;
+  }
+
   function isVoiceNote(row) {
     if (row?.querySelector?.(VOICE_HINTS)) return true;
     if (!row?.querySelector) return false;
@@ -64,5 +68,5 @@
     return media?.closest?.('div[role="row"], div[data-id]') || null;
   }
 
-  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, isVoiceNote, isOutgoing, rows, rowForMedia, transportButton, isDownloadButton };
+  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, bubbleAnchor, isVoiceNote, isOutgoing, rows, rowForMedia, transportButton, isDownloadButton };
 })();
