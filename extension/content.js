@@ -56,6 +56,12 @@
     const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
     return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   };
+  const blobPayload = async (blob) => {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    return { audioBase64: btoa(binary), mime: blob.type || "audio/ogg" };
+  };
   async function cacheGet(key) { if (!key) return null; return (await chrome.storage.local.get(key))[key] || null; }
   async function cacheSet(record, id, hash) {
     const value = { ...record, lastAccessedAt: Date.now() };
@@ -141,7 +147,7 @@
     const hashCached = await cacheGet(`${CACHE_PREFIX}hash:${hash}`);
     if (hashCached) { report("hash_cache_hit", { messageId: shortId(id), audioHash: hash.slice(0, 12) }); render(ui, "Transcrição", hashCached.text); if (id) await cacheSet(hashCached, id, hash); return; }
     report("backend_request", { messageId: shortId(id), bytes: blob.size, mime: blob.type || "desconhecido" });
-    const response = await runtime({ type: "TRANSCRIBE_AUDIO", audio: blob });
+    const response = await runtime({ type: "TRANSCRIBE_AUDIO", ...(await blobPayload(blob)) });
     if (!response?.ok || !response.result?.success) { report("backend_error", { messageId: shortId(id), error: response?.error || "resposta inválida" }); throw new Error(response?.error || "Backend indisponível."); }
     const record = { version: 1, messageId: id, audioHash: hash, text: response.result.text, language: response.result.language, createdAt: Date.now() };
     await cacheSet(record, id, hash);

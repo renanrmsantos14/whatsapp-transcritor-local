@@ -1,6 +1,8 @@
 try { importScripts("local-config.js"); } catch (_) {}
 const WT_CONFIG = globalThis.LOCAL_CONFIG || { token: "" };
 const WT_API = "http://127.0.0.1:8765";
+const MAX_BYTES = 25 * 1024 * 1024;
+const MAX_BASE64_LENGTH = Math.ceil(MAX_BYTES * 4 / 3) + 4;
 const log = (event, details = {}) => console.info("[WT background]", event, details);
 
 function allowedSender(sender, setup = false) {
@@ -32,10 +34,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   const audio = message?.audio;
+  const audioBase64 = message?.audioBase64;
   const blobLike = audio && typeof audio.size === "number" && typeof audio.arrayBuffer === "function";
-  if (message.type === "TRANSCRIBE_AUDIO" && blobLike) {
+  const base64Like = typeof audioBase64 === "string" && audioBase64.length > 0 && audioBase64.length <= MAX_BASE64_LENGTH;
+  if (message.type === "TRANSCRIBE_AUDIO" && (blobLike || base64Like)) {
     const form = new FormData();
-    form.append("audio", audio instanceof Blob ? audio : new Blob([audio], { type: audio.type || "audio/ogg" }), "whatsapp.ogg");
+    let payload = audio;
+    if (!blobLike) {
+      try {
+        const binary = atob(audioBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+        payload = new Blob([bytes], { type: message.mime || "audio/ogg" });
+      } catch (_) {
+        sendResponse({ ok: false, error: "audio_encoding_invalid" });
+        return false;
+      }
+    }
+    form.append("audio", payload instanceof Blob ? payload : new Blob([payload], { type: payload.type || "audio/ogg" }), "whatsapp.ogg");
     api("/transcribe", { method: "POST", body: form })
       .then((result) => sendResponse({ ok: true, result }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
