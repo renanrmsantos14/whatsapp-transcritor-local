@@ -12,9 +12,9 @@ try {
     & $cli -s=wt-v02 press Tab | Out-Null
     & $cli -s=wt-v02 press Tab | Out-Null
     & $cli -s=wt-v02 press Enter | Out-Null
-    $completed = & $cli -s=wt-v02 run-code "async page => { await page.waitForTimeout(2500); return await page.evaluate(() => document.querySelector('[data-wt-control]').dataset.hasResult); }" --raw
-    if ($completed.Trim() -notmatch "true") { throw "Fluxo de progresso não concluiu" }
-    Write-Host "Browser fixture: captura, progresso e Shadow DOM validados."
+    $completed = & $cli -s=wt-v02 run-code "async page => { await page.waitForTimeout(200); await page.evaluate(() => leaveChat()); await page.waitForTimeout(2500); await page.evaluate(() => returnToChat()); await page.waitForTimeout(500); return await page.evaluate(() => document.querySelector('[data-wt-control]').dataset.hasResult); }" --raw
+    if ($completed.Trim() -notmatch "true") { throw "Job não continuou após troca de conversa" }
+    Write-Host "Browser fixture: captura, troca de conversa, cache e Shadow DOM validados."
 } finally {
     & $cli -s=wt-v02 close | Out-Null
     if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }

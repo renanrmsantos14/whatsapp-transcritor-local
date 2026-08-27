@@ -46,10 +46,12 @@
         const started = Date.now();
         while (!ui.canceled) {
           const response = await runtime({ type: "GET_JOB", jobId: ui.jobId, messageId: expectedId, audioHash }); if (!response?.ok) throw response.error; const job = response.job;
-          if (!row.isConnected || (expectedId && S.messageId(row) !== expectedId)) { await cancel(ui); return; }
-          if (job.state === "completed") { render(ui, "Transcrição", job.result.text); return; }
-          if (job.state === "failed") throw job.error; if (job.state === "canceled") { render(ui, "Cancelado", "Transcrição cancelada."); return; }
-          render(ui, `Transcrevendo · ${Math.floor((Date.now() - started) / 1000)}s`, job.stage === "preparing" ? "Preparando modelo…" : "Processando localmente…"); await sleep(Date.now() - started < 10000 ? 1000 : 2000);
+          const canRender = row.isConnected && (!expectedId || S.messageId(row) === expectedId);
+          if (job.state === "completed") { if (canRender) render(ui, "Transcrição", job.result.text); return; }
+          if (job.state === "failed") { if (canRender) throw job.error; return; }
+          if (job.state === "canceled") { if (canRender) render(ui, "Cancelado", "Transcrição cancelada."); return; }
+          if (canRender) render(ui, `Transcrevendo · ${Math.floor((Date.now() - started) / 1000)}s`, job.stage === "preparing" ? "Preparando modelo…" : "Processando localmente…");
+          await sleep(Date.now() - started < 10000 ? 1000 : 2000);
         }
         return;
       }

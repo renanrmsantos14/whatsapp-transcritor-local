@@ -1,11 +1,11 @@
 <!doctype html><html><body>
 <div role="row" data-id="true_fixture"><span data-icon="ptt-status"></span><button aria-label="Reproduzir áudio">Play</button></div>
 <script>
-let polls = 0;
+let polls = 0, cached = null;
 globalThis.chrome = { runtime: { lastError: null, sendMessage(message, callback) {
-  if (message.type === "CACHE_GET") return callback({ ok:true, cached:null });
+  if (message.type === "CACHE_GET") return callback({ ok:true, cached });
   if (message.type === "CREATE_JOB") return callback({ ok:true, job:{ job_id:"fixture-job" } });
-  if (message.type === "GET_JOB") { polls++; return callback({ ok:true, job: polls < 2 ? { state:"transcribing", stage:"transcribing" } : { state:"completed", result:{ text:"texto fixture", language:"pt" } } }); }
+  if (message.type === "GET_JOB") { polls++; if (polls >= 2) cached = { text:"texto fixture", language:"pt" }; return callback({ ok:true, job: polls < 2 ? { state:"transcribing", stage:"transcribing" } : { state:"completed", result:cached } }); }
   if (message.type === "CANCEL_JOB") return callback({ ok:true, job:{ state:"canceled" } });
   callback({ ok:false, error:{ message:"unexpected" } });
 } } };
@@ -15,6 +15,13 @@ addEventListener("message", (event) => {
   else if (data.action === "arm") postMessage({ __wt:"response", id:data.id, ok:true, blob:new Blob(["OggSfixture"], { type:"audio/ogg" }) }, "*");
   else postMessage({ __wt:"response", id:data.id, ok:true }, "*");
 });
+globalThis.leaveChat = () => document.querySelector('[role="row"]').remove();
+globalThis.returnToChat = () => {
+  const row = document.createElement("div"); row.setAttribute("role", "row"); row.dataset.id = "true_fixture";
+  const hint = document.createElement("span"); hint.dataset.icon = "ptt-status";
+  const button = document.createElement("button"); button.setAttribute("aria-label", "Reproduzir áudio"); button.textContent = "Play";
+  row.append(hint, button); document.body.prepend(row);
+};
 </script>
 <script src="../../extension/selectors.js"></script><script src="../../extension/protocol.js"></script><script src="../../extension/content.js"></script>
 </body></html>
