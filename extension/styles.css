@@ -1,4 +1,4 @@
-.wt-wrap{box-sizing:border-box;width:min(430px,calc(100vw - 32px));margin:6px 0 0;padding:8px 10px;border:1px solid rgba(0,0,0,.08);border-radius:10px;background:rgba(255,255,255,.82);color:inherit;font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 1px 2px rgba(0,0,0,.04);user-select:text;-webkit-user-select:text}
+.wt-wrap{box-sizing:border-box;width:min(390px,calc(100% - 16px));margin:6px 0 0;padding:10px 14px 12px;border:1px solid rgba(0,0,0,.08);border-radius:10px;background:rgba(255,255,255,.82);color:inherit;font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 1px 2px rgba(0,0,0,.04);user-select:text;-webkit-user-select:text}
 .wt-bar{display:flex;align-items:center;gap:6px;min-height:26px}
 .wt-status{color:rgba(0,0,0,.62);font-size:11px;font-weight:650;letter-spacing:.01em;white-space:nowrap}
 .wt-result{margin-top:7px;max-height:190px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;scrollbar-width:thin;user-select:text;-webkit-user-select:text;cursor:text}
