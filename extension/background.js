@@ -6,7 +6,10 @@ const log = (event, details = {}) => console.info("[WT background]", event, deta
 function allowedSender(sender, setup = false) {
   if (sender.id !== chrome.runtime.id) return false;
   if (setup) return !sender.tab;
-  return Boolean(sender.tab?.url?.startsWith("https://web.whatsapp.com/"));
+  try {
+    const url = new URL(sender.tab?.url || "");
+    return url.protocol === "https:" && url.hostname === "web.whatsapp.com";
+  } catch (_) { return false; }
 }
 
 async function api(path, init = {}) {
@@ -23,7 +26,7 @@ async function api(path, init = {}) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const setup = message?.type === "HEALTH_CHECK";
-  if (!allowedSender(sender, setup)) { log("message_rejected", { type: message?.type || "unknown" }); sendResponse({ ok: false, error: "sender_not_allowed" }); return false; }
+  if (!allowedSender(sender, setup)) { log("message_rejected", { type: message?.type || "unknown", senderUrl: sender.tab?.url || "no-tab", senderIdMatch: sender.id === chrome.runtime.id }); sendResponse({ ok: false, error: "sender_not_allowed" }); return false; }
   if (message.type === "HEALTH_CHECK") {
     api("/health").then((health) => sendResponse({ ok: true, health })).catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;

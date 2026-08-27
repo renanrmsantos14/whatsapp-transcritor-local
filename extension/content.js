@@ -10,6 +10,7 @@
   let active = false;
   let sequence = 0;
   let fallbackRowSequence = 0;
+  let lastVoiceInteraction = null;
 
   const shortId = (value) => value ? `${String(value).slice(0, 12)}…` : "sem-id";
   const report = (event, details = {}) => {
@@ -40,6 +41,12 @@
     setTimeout(() => { window.removeEventListener("message", listener); resolve({ ok: false, error: "timeout" }); }, timeout);
   });
   const runtime = (message) => new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));
+  const rememberVoiceInteraction = (event) => {
+    const row = event.target?.closest?.('div[role="row"], div[data-id]');
+    if (row && S.isVoiceNote(row)) lastVoiceInteraction = { row, at: Date.now() };
+  };
+  document.addEventListener("pointerdown", rememberVoiceInteraction, true);
+  document.addEventListener("click", rememberVoiceInteraction, true);
   const keyFor = (id) => id ? `${CACHE_PREFIX}id:${id}` : null;
   const hashBlob = async (blob) => {
     const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
@@ -179,7 +186,9 @@
       return;
     }
     if (event.source !== window || event.data?.__wt !== "playing") return;
-    const row = S.rowForMedia(event.data.mediaId);
+    const directRow = S.rowForMedia(event.data.mediaId);
+    const fallback = lastVoiceInteraction && Date.now() - lastVoiceInteraction.at < 5000 ? lastVoiceInteraction.row : null;
+    const row = directRow || fallback;
     if (!row || !S.isVoiceNote(row)) { report("manual_play_ignored", { reason: "voice_row_not_found", mediaId: event.data.mediaId }); return; }
     report("manual_play_detected", { messageId: shortId(S.messageId(row)), outgoing: S.isOutgoing(row), mediaId: event.data.mediaId });
     const captured = await askPage("capture_playing", { mediaId: event.data.mediaId }, 10000);
