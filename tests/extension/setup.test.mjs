@@ -27,6 +27,8 @@ test("painel expõe saúde e ações de instalação", () => {
   assert.match(installer, /ProcessName -notmatch "\^pythonw\?\$"/);
   assert.match(installer, /server\\\.\(supervisor\|launcher\)/);
   assert.match(installer, /persistentHealth/);
+  assert.match(installer, /installedConfig/);
+  assert.match(installer, /Copy-Item -LiteralPath \$installedConfig/);
 });
 
 test("painel mantém acessibilidade e tema sem dependências externas", () => {

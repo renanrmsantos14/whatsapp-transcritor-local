@@ -27,7 +27,10 @@ if ([IO.Path]::GetFullPath($root).TrimEnd("\") -ne [IO.Path]::GetFullPath($insta
     Get-ChildItem (Join-Path $root "extension") -File | Where-Object Name -ne "local-config.js" | Copy-Item -Destination (Join-Path $installRoot "extension") -Force
     Copy-Item -Path (Join-Path $root "scripts\*") -Destination (Join-Path $installRoot "scripts") -Force
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $installRoot "scripts\instalar.ps1")
-    exit $LASTEXITCODE
+    $installExitCode = $LASTEXITCODE
+    $installedConfig = Join-Path $installRoot "extension\local-config.js"
+    if ($installExitCode -eq 0 -and (Test-Path $installedConfig)) { Copy-Item -LiteralPath $installedConfig -Destination (Join-Path $root "extension\local-config.js") -Force }
+    exit $installExitCode
 }
 $pythonVersion = "3.13.15"
 $pythonUrl = "https://www.python.org/ftp/python/$pythonVersion/python-3.13.15-amd64.exe"
