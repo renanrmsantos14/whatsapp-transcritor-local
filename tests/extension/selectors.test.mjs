@@ -22,6 +22,15 @@ test("identifica nota de voz por hints semânticos", () => {
   assert.equal(selectors.isVoiceNote(row), true);
 });
 
+test("identifica áudio encaminhado por duração e controle de reprodução", () => {
+  const row = {
+    textContent: "Forwarded 1:32 15:39",
+    querySelector: (selector) => selector.includes("audio") ? null : null,
+    querySelectorAll: () => [{ getAttribute: (name) => name === "aria-label" ? "Reproduzir áudio" : "" }],
+  };
+  assert.equal(selectors.isVoiceNote(row), true);
+});
+
 test("manifesto mantém permissões mínimas e worker como ponte local", () => {
   const manifest = JSON.parse(fs.readFileSync(new URL("../../extension/manifest.json", import.meta.url), "utf8"));
   assert.deepEqual(manifest.host_permissions, ["https://web.whatsapp.com/*", "http://127.0.0.1:8765/*"]);

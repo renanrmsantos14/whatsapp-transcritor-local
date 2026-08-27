@@ -2,6 +2,7 @@
   "use strict";
 
   const VOICE_HINTS = '[data-icon="ptt-status"], [aria-label*="voice message" i], [aria-label*="mensagem de voz" i]';
+  const AUDIO_HINTS = '[data-testid*="audio" i], [data-icon*="audio" i], audio, [aria-label*="reproduzir áudio" i], [aria-label*="play audio" i]';
   const ID_SELECTOR = "[data-id]";
 
   function messageId(row) {
@@ -10,7 +11,15 @@
   }
 
   function isVoiceNote(row) {
-    return Boolean(row?.querySelector?.(VOICE_HINTS));
+    if (row?.querySelector?.(VOICE_HINTS)) return true;
+    if (!row?.querySelector) return false;
+    const hasAudioHint = Boolean(row.querySelector(AUDIO_HINTS));
+    if (hasAudioHint) return true;
+    const text = row.textContent || "";
+    const hasDuration = /\b\d{1,2}:\d{2}\b/.test(text);
+    const controls = [...(row.querySelectorAll("button, [role='button']") || [])];
+    const hasPlaybackControl = controls.some((control) => /play|pause|reproduzir|tocar|áudio|audio/i.test(`${control.getAttribute?.("aria-label") || ""} ${control.getAttribute?.("data-testid") || ""} ${control.getAttribute?.("data-icon") || ""}`));
+    return hasDuration && hasPlaybackControl;
   }
 
   function isOutgoing(row) {
@@ -35,6 +44,8 @@
   function transportButton(row) {
     const buttons = [...(row?.querySelectorAll?.("button") || [])].filter((button) => !button.closest?.(".wt-wrap"));
     if (!buttons.length) return null;
+    const playback = buttons.find((button) => /play|pause|reproduzir|tocar|áudio|audio/i.test(`${button.getAttribute?.("aria-label") || ""} ${button.getAttribute?.("data-testid") || ""} ${button.getAttribute?.("data-icon") || ""}`));
+    if (playback) return playback;
     const slider = row.querySelector?.('[role="slider"]');
     if (slider) {
       const before = buttons.filter((button) => button.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -53,5 +64,5 @@
     return media?.closest?.('div[role="row"], div[data-id]') || null;
   }
 
-  globalThis.WTSelectors = { VOICE_HINTS, messageId, isVoiceNote, isOutgoing, rows, rowForMedia, transportButton, isDownloadButton };
+  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, isVoiceNote, isOutgoing, rows, rowForMedia, transportButton, isDownloadButton };
 })();
