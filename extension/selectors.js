@@ -11,7 +11,23 @@
   }
 
   function bubbleAnchor(row) {
-    return row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR) || null;
+    const rowBox = row?.getBoundingClientRect?.();
+    const media = row?.querySelector?.(VOICE_HINTS) || row?.querySelector?.(AUDIO_HINTS) || transportButton(row);
+    let node = media?.parentElement || null;
+    let surface = null;
+    while (node && node !== row) {
+      const box = node.getBoundingClientRect?.();
+      if (box && rowBox && box.width >= 180 && box.width < rowBox.width - 20 && box.height >= 40 && box.height <= 260) {
+        try {
+          const style = getComputedStyle(node);
+          const background = style.backgroundColor;
+          const radius = parseFloat(style.borderTopLeftRadius) || 0;
+          if (background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)" && radius > 0) surface = node;
+        } catch (_) { }
+      }
+      node = node.parentElement;
+    }
+    return surface || row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR) || null;
   }
 
   function isVoiceNote(row) {

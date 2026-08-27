@@ -138,13 +138,20 @@
     const rowBox = row?.getBoundingClientRect?.();
     const bubbleBox = anchor?.getBoundingClientRect?.();
     if (!rowBox || !bubbleBox || rowBox.width <= 0 || bubbleBox.width < 120) return;
-    ui.wrap.style.width = `${Math.round(Math.min(390, bubbleBox.width))}px`;
+    const width = Math.round(Math.min(390, bubbleBox.width));
+    const inset = Math.max(0, Math.round(outgoing ? rowBox.right - bubbleBox.right : bubbleBox.left - rowBox.left));
+    ui.wrap.style.width = `${width}px`;
     if (outgoing) {
       ui.wrap.style.marginLeft = "auto";
-      ui.wrap.style.marginRight = `${Math.max(0, Math.round(rowBox.right - bubbleBox.right))}px`;
+      ui.wrap.style.marginRight = `${inset}px`;
     } else {
-      ui.wrap.style.marginLeft = `${Math.max(0, Math.round(bubbleBox.left - rowBox.left))}px`;
+      ui.wrap.style.marginLeft = `${inset}px`;
       ui.wrap.style.marginRight = "auto";
+    }
+    const placement = `${outgoing ? "out" : "in"}:${inset}:${width}`;
+    if (ui.wrap.dataset.placement !== placement) {
+      ui.wrap.dataset.placement = placement;
+      report("ui_placement", { direction: outgoing ? "outgoing" : "incoming", inset, width });
     }
   }
   async function restoreCached(row, ui) {
