@@ -34,7 +34,13 @@
   function revealIfLast(row, ui) {
     if (!S.isLastMessage(row)) return;
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (row.isConnected && S.isLastMessage(row)) ui.host.scrollIntoView({ block: "nearest", inline: "nearest" });
+      if (!row.isConnected || !S.isLastMessage(row)) return;
+      ui.host.scrollIntoView({ block: "end", inline: "nearest" });
+      let container = row.parentElement;
+      while (container) {
+        if (container.scrollHeight > container.clientHeight + 1) { container.scrollTop = container.scrollHeight; break; }
+        container = container.parentElement;
+      }
     }));
   }
   function createUI(row) {

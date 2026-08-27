@@ -2,7 +2,7 @@
 <div role="row" data-id="true_fixture"><span data-icon="ptt-status"></span><button aria-label="Reproduzir áudio" onclick="playClicks++">Play</button></div>
 <script>
 let polls = 0, cached = null; globalThis.playClicks = 0; globalThis.transcriptScrolled = false;
-Element.prototype.scrollIntoView = function (options) { if (this.dataset?.wtControl) globalThis.transcriptScrolled = options?.block === "nearest"; };
+Element.prototype.scrollIntoView = function (options) { if (this.dataset?.wtControl) globalThis.transcriptScrolled = options?.block === "end"; };
 globalThis.chrome = { runtime: { lastError: null, sendMessage(message, callback) {
   if (message.type === "CACHE_GET") return callback({ ok:true, cached });
   if (message.type === "CREATE_JOB") return callback({ ok:true, job:{ job_id:"fixture-job" } });
