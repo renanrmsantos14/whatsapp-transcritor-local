@@ -10,7 +10,6 @@
   let active = false;
   let sequence = 0;
   let fallbackRowSequence = 0;
-  let lastVoiceInteraction = null;
 
   const shortId = (value) => value ? `${String(value).slice(0, 12)}…` : "sem-id";
   const report = (event, details = {}) => {
@@ -45,12 +44,6 @@
     if (runtimeError) { report("runtime_message_error", { type: message?.type, error: runtimeError.message }); resolve({ ok: false, error: runtimeError.message }); return; }
     resolve(response);
   }));
-  const rememberVoiceInteraction = (event) => {
-    const row = event.target?.closest?.('div[role="row"], div[data-id]');
-    if (row && S.isVoiceNote(row)) lastVoiceInteraction = { row, at: Date.now() };
-  };
-  document.addEventListener("pointerdown", rememberVoiceInteraction, true);
-  document.addEventListener("click", rememberVoiceInteraction, true);
   const keyFor = (id) => id ? `${CACHE_PREFIX}id:${id}` : null;
   const hashBlob = async (blob) => {
     const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
@@ -84,23 +77,27 @@
     const retry = textNode("button", "wt-retry", "Tentar novamente");
     retry.type = "button";
     retry.hidden = true;
+    const action = textNode("button", "wt-action", "Transcrever");
     const bar = textNode("div", "wt-bar");
-    bar.append(textNode("span", "wt-icon", "📝"), status, copy, retry);
+    bar.append(textNode("span", "wt-icon", "📝"), status, action, copy, retry);
     wrap.append(bar, result);
     ["click", "mousedown", "mouseup", "pointerdown", "dblclick"].forEach((type) => wrap.addEventListener(type, (event) => event.stopPropagation()));
     copy.addEventListener("click", () => navigator.clipboard.writeText(result.textContent || ""));
-    retry.addEventListener("click", () => enqueue(row, true));
+    action.addEventListener("click", () => enqueueOnDemand(row));
+    retry.addEventListener("click", () => enqueueOnDemand(row));
     row.appendChild(wrap);
     wrap.dataset.messageId = S.messageId(row) || "";
-    return { wrap, status, result, copy, retry };
+    render({ wrap, status, result, action, copy, retry }, "Pronto", "Clique em Transcrever. O áudio não será reproduzido automaticamente.");
+    return { wrap, status, result, action, copy, retry };
   }
-  const uiFromWrap = (wrap) => ({ wrap, status: wrap.querySelector(".wt-status"), result: wrap.querySelector(".wt-result"), copy: wrap.querySelector(".wt-copy"), retry: wrap.querySelector(".wt-retry") });
+  const uiFromWrap = (wrap) => ({ wrap, status: wrap.querySelector(".wt-status"), result: wrap.querySelector(".wt-result"), action: wrap.querySelector(".wt-action"), copy: wrap.querySelector(".wt-copy"), retry: wrap.querySelector(".wt-retry") });
   function render(ui, state, text = "") {
     ui.status.textContent = state;
     ui.result.textContent = text;
     ui.copy.hidden = state !== "Transcrição";
     ui.retry.hidden = state !== "Não foi possível transcrever.";
-    ui.wrap.dataset.state = state === "Transcrição" ? "success" : state === "Não foi possível transcrever." ? "error" : "busy";
+    if (ui.action) ui.action.hidden = state !== "Pronto";
+    ui.wrap.dataset.state = state === "Transcrição" ? "success" : state === "Não foi possível transcrever." ? "error" : state === "Pronto" ? "idle" : "busy";
   }
   function rowKey(row) { if (!rowIds.has(row)) rowIds.set(row, `row-${Date.now()}-${++fallbackRowSequence}`); return S.messageId(row) || rowIds.get(row); }
   async function ensureHealth() {
@@ -139,7 +136,7 @@
     const id = S.messageId(row);
     const cached = await cacheGet(keyFor(id));
     if (cached) { report("cache_hit", { messageId: shortId(id) }); render(ui, "Transcrição", cached.text); return; }
-    report("transcription_start", { messageId: shortId(id), source: initialBlob ? "manual_play" : "automatic_received" });
+    report("transcription_start", { messageId: shortId(id), source: initialBlob ? "manual_play" : "explicit_action" });
     await ensureHealth();
     render(ui, "Transcrevendo…");
     const blob = initialBlob || await capture(row, ui);
@@ -164,28 +161,14 @@
     }
     active = false;
   }
-  function enqueue(row, force = false) {
-    if (!S.isVoiceNote(row) || S.isOutgoing(row)) return;
+  function enqueueOnDemand(row) {
+    if (!S.isVoiceNote(row)) return;
     let ui = row.querySelector(".wt-wrap");
     ui = ui ? uiFromWrap(ui) : makeUI(row);
     const key = rowKey(row);
-    if (!force && queued.has(key)) return;
-    if (force) pending.splice(0, pending.length, ...pending.filter((job) => job.key !== key));
-    queued.add(key); pending.push({ row, ui, key, blob: null }); report("job_queued", { messageId: shortId(S.messageId(row)), source: "automatic_received", queue: pending.length }); drain();
-  }
-  function enqueueManual(row, blob) {
-    if (!S.isVoiceNote(row) || !blob?.size) { report("manual_play_ignored", { reason: "row_or_blob_invalid" }); return; }
-    const existing = row.querySelector(".wt-wrap");
-    if (existing?.dataset.state === "busy") { report("manual_play_ignored", { reason: "already_busy", messageId: shortId(S.messageId(row)) }); return; }
-    const ui = existing ? uiFromWrap(existing) : makeUI(row);
-    const key = rowKey(row);
     if (queued.has(key)) return;
-    queued.add(key);
-    pending.push({ row, ui, key, blob });
-    report("job_queued", { messageId: shortId(S.messageId(row)), source: "manual_play", bytes: blob.size, queue: pending.length });
-    drain();
+    queued.add(key); pending.push({ row, ui, key, blob: null }); report("job_queued", { messageId: shortId(S.messageId(row)), source: "explicit_action", queue: pending.length }); drain();
   }
-
   window.addEventListener("message", async (event) => {
     if (event.source === window && event.data?.__wt === "report_request") {
       report("report_requested");
@@ -195,23 +178,14 @@
       console.groupEnd();
       return;
     }
-    if (event.source !== window || event.data?.__wt !== "playing") return;
-    const directRow = S.rowForMedia(event.data.mediaId);
-    const fallback = lastVoiceInteraction && Date.now() - lastVoiceInteraction.at < 5000 ? lastVoiceInteraction.row : null;
-    const row = directRow || fallback;
-    if (!row || !S.isVoiceNote(row)) { report("manual_play_ignored", { reason: "voice_row_not_found", mediaId: event.data.mediaId }); return; }
-    report("manual_play_detected", { messageId: shortId(S.messageId(row)), outgoing: S.isOutgoing(row), mediaId: event.data.mediaId });
-    const captured = await askPage("capture_playing", { mediaId: event.data.mediaId }, 10000);
-    if (captured.ok && captured.blob) enqueueManual(row, captured.blob);
-    else report("manual_play_capture_error", { messageId: shortId(S.messageId(row)), error: captured.error || "sem blob" });
   });
   function scan() {
     for (const row of S.rows()) {
       const existing = row.querySelector(".wt-wrap");
       const id = S.messageId(row) || "";
-      if (existing && existing.dataset.messageId === id) continue;
+      if (existing && existing.dataset.messageId === id && existing.querySelector(".wt-action")) continue;
       if (existing) existing.remove();
-      enqueue(row);
+      makeUI(row);
     }
   }
   let scheduled = false;

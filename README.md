@@ -25,8 +25,9 @@ O instalador cria inicialização silenciosa no login do Windows. Para diagnóst
 
 ## Comportamento
 
-- Somente notas recebidas e renderizadas são processadas automaticamente.
-- Ao clicar para escutar uma nota de voz, a extensão também captura e transcreve aquele áudio em reprodução, seja recebido ou enviado.
+- Cada nota de voz recebida ou enviada renderizada ganha um botão discreto **Transcrever**.
+- Nada é reproduzido, baixado ou enviado sem clique explícito nesse botão.
+- O clique captura a nota selecionada, envia somente ao backend local e mostra o resultado abaixo da bolha.
 - Áudios fora do DOM virtualizado aparecem quando forem carregados ao rolar.
 - Fila mantém uma transcrição por vez.
 - Cache fica em `chrome.storage.local`; áudio nunca é persistido pelo projeto.

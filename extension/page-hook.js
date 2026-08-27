@@ -3,11 +3,9 @@
   const MAX_BYTES = 25 * 1024 * 1024;
   const retained = new Map();
   const seen = new Set();
-  const mediaSources = new Map();
   let capture = null;
   let suppressUntil = 0;
   let sequence = 0;
-  let mediaSequence = 0;
   const log = (event, details = {}) => console.info("[WT hook]", event, details);
 
   const respond = (id, payload) => window.postMessage({ __wt: "response", id, ...payload }, "*");
@@ -25,13 +23,8 @@
       try { node.pause(); node.currentTime = 0; node.muted = true; node.volume = 0; } catch (_) {}
     }
   };
-  function mediaId(node) {
-    if (!node.dataset.wtMediaId) node.dataset.wtMediaId = `wt-media-${++mediaSequence}`;
-    return node.dataset.wtMediaId;
-  }
-
-  async function grab(url, sourceId = null) {
-    if (!capture || capture.done || (capture.mediaId && capture.mediaId !== sourceId) || typeof url !== "string" || !url.startsWith("blob:")) return;
+  async function grab(url) {
+    if (!capture || capture.done || typeof url !== "string" || !url.startsWith("blob:")) return;
     capture.done = true;
     const id = capture.id;
     try {
@@ -62,11 +55,8 @@
   const originalPause = HTMLMediaElement.prototype.pause;
   HTMLMediaElement.prototype.play = function () {
     remember(this);
-    const sourceId = mediaId(this);
     const source = this.src || this.currentSrc;
-    if (source) mediaSources.set(sourceId, source);
-    if (!capture) window.postMessage({ __wt: "playing", mediaId: sourceId }, "*");
-    grab(source, sourceId);
+    grab(source);
     if (suppressing()) {
       try { this.muted = true; this.volume = 0; originalPause.call(this); } catch (_) {}
       return Promise.resolve();
@@ -79,16 +69,14 @@
     configurable: true,
     enumerable: sourceDescriptor.enumerable,
     get() { return sourceDescriptor.get.call(this); },
-    set(value) { remember(this); const sourceId = mediaId(this); mediaSources.set(sourceId, value); grab(value, sourceId); return sourceDescriptor.set.call(this, value); },
+    set(value) { remember(this); grab(value); return sourceDescriptor.set.call(this, value); },
   });
 
   const OriginalAudio = window.Audio;
   window.Audio = function (src) {
     const audio = new OriginalAudio(src);
     remember(audio);
-    const sourceId = mediaId(audio);
-    if (src) mediaSources.set(sourceId, src);
-    if (src) grab(src, sourceId);
+    if (src) grab(src);
     return audio;
   };
   window.Audio.prototype = OriginalAudio.prototype;
@@ -99,13 +87,8 @@
     if (action === "ping") return respond(id, { ok: true, version: 1 });
     if (action === "arm") {
       suppressUntil = Date.now() + (ms || 30000);
-      capture = { id, done: false, mediaId: null };
+      capture = { id, done: false };
       return;
-    }
-    if (action === "capture_playing") {
-      const sourceId = typeof event.data.mediaId === "string" ? event.data.mediaId : null;
-      capture = { id, done: false, mediaId: sourceId };
-      return grab(mediaSources.get(sourceId), sourceId);
     }
     if (action === "hold") { suppressUntil = Date.now() + (ms || 2500); return respond(id, { ok: true }); }
     if (action === "silence") { silence(); return respond(id, { ok: true }); }
