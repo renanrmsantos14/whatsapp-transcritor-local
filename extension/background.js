@@ -25,7 +25,7 @@ async function api(path, init = {}) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const setup = message?.type === "HEALTH_CHECK";
+  const setup = message?.type === "HEALTH_CHECK" && !sender.tab;
   if (!allowedSender(sender, setup)) { log("message_rejected", { type: message?.type || "unknown", senderUrl: sender.tab?.url || "no-tab", senderIdMatch: sender.id === chrome.runtime.id }); sendResponse({ ok: false, error: "sender_not_allowed" }); return false; }
   if (message.type === "HEALTH_CHECK") {
     api("/health").then((health) => sendResponse({ ok: true, health })).catch((error) => sendResponse({ ok: false, error: error.message }));
