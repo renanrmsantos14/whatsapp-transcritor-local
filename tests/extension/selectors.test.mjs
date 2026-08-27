@@ -17,6 +17,19 @@ test("identifica direção pelo data-id sem classes frágeis", () => {
   assert.equal(selectors.isOutgoing(makeRow("false_abc")), false);
 });
 
+test("usa o data-id do áudio em vez de um id interno de mensagem encaminhada", () => {
+  const forwardedId = { getAttribute: () => "false_other_chat_forwarded" };
+  const audioMessage = { getAttribute: () => "false_current_chat_audio" };
+  const voiceHint = { closest: () => audioMessage };
+  const row = {
+    matches: () => false,
+    closest: () => null,
+    contains: (node) => node === audioMessage,
+    querySelector: (selector) => selector.includes("ptt-status") ? voiceHint : forwardedId,
+  };
+  assert.equal(selectors.messageId(row), "false_current_chat_audio");
+});
+
 test("usa o primeiro ancestral com geometria de bolha de áudio", () => {
   const row = { getBoundingClientRect: () => ({ width: 800 }) };
   const outer = { parentElement: row, getBoundingClientRect: () => ({ width: 410, height: 150 }), visualStyle: { backgroundColor: "rgb(255, 255, 255)", borderTopLeftRadius: "8px" } };

@@ -6,7 +6,11 @@
   const ID_SELECTOR = "[data-id]";
 
   function messageId(row) {
-    const node = row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR);
+    const self = row?.matches?.(ID_SELECTOR) ? row : null;
+    const media = row?.querySelector?.(VOICE_HINTS) || row?.querySelector?.(AUDIO_HINTS);
+    const mediaMessage = media?.closest?.(ID_SELECTOR);
+    const anchored = mediaMessage && (!row?.contains || row.contains(mediaMessage)) ? mediaMessage : null;
+    const node = self || anchored || row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR);
     return node?.getAttribute?.("data-id") || null;
   }
 
