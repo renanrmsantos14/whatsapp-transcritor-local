@@ -23,6 +23,17 @@ O backend não exige FFmpeg instalado: o `faster-whisper` usa PyAV para decodifi
 
 O instalador cria inicialização silenciosa no login do Windows. Para diagnóstico, execute `scripts\iniciar.bat`.
 
+## Painel de controle
+
+Clique no ícone da extensão para abrir o painel local. Ele mostra se o backend e o modelo estão prontos, além da fila, dispositivo e ações de manutenção:
+
+- **Instalar ou atualizar** copia o comando do instalador idempotente. Use no PowerShell do computador destino; ele instala Python, dependências e o modelo.
+- **Iniciar backend** copia o comando para executar o serviço local em modo visível.
+- **Recarregar WhatsApp Web** copia `Ctrl + Shift + R`, que deve ser usado na aba do WhatsApp.
+- **Copiar caminho da extensão** ajuda no passo **Carregar sem compactação** do Chrome.
+
+Por segurança, uma extensão Chrome não pode executar arquivos `.bat` nem controlar abas do sistema sem permissões nativas adicionais. Por isso as ações de manutenção são explícitas e copiáveis; nenhuma delas altera o fluxo normal do WhatsApp.
+
 ## Comportamento
 
 - Cada nota de voz recebida ou enviada renderizada ganha um botão discreto **Transcrever**.
@@ -31,6 +42,8 @@ O instalador cria inicialização silenciosa no login do Windows. Para diagnóst
 - Áudios fora do DOM virtualizado aparecem quando forem carregados ao rolar.
 - Fila mantém uma transcrição por vez.
 - Cache fica em `chrome.storage.local`; áudio nunca é persistido pelo projeto.
+- O texto restaurado automaticamente permanece por 7 dias a partir da transcrição; depois disso o registro é removido.
+- A transcrição segue o lado da mensagem: recebida à esquerda e enviada à direita.
 - A captura precisa acionar o controle do WhatsApp. Mesmo sem som, o WhatsApp pode marcar o áudio como ouvido.
 
 ## Testes

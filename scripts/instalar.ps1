@@ -36,7 +36,8 @@ $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
 try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
 $token = [Convert]::ToBase64String($bytes).TrimEnd("=").Replace("+", "-").Replace("/", "_")
 Set-Content -LiteralPath (Join-Path $root "server\.local-token") -Value $token -Encoding ascii -NoNewline
-Set-Content -LiteralPath (Join-Path $root "extension\local-config.js") -Value "globalThis.LOCAL_CONFIG = { token: '$token' };" -Encoding ascii
+$config = @{ token = $token; projectRoot = $root; extensionPath = (Join-Path $root "extension") } | ConvertTo-Json -Compress
+Set-Content -LiteralPath (Join-Path $root "extension\local-config.js") -Value "globalThis.LOCAL_CONFIG = $config;" -Encoding ascii
 
 Push-Location $root
 try { & $venvPython -m server.warmup } finally { Pop-Location }

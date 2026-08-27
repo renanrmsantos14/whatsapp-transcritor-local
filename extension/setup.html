@@ -1,5 +1,34 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><title>Transcritor local</title><style>body{font:14px system-ui;min-width:280px;padding:16px}#status{white-space:pre-wrap}</style></head>
-<body><strong>Transcritor local</strong><p id="status">Testando backend…</p><script src="setup.js"></script></body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transcritor local</title>
+  <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+  <main class="panel">
+    <header class="header">
+      <div class="brand-mark" aria-hidden="true">WT</div>
+      <div><p class="eyebrow">CONTROLE LOCAL</p><h1>Transcritor local</h1><p class="subtitle">Privacidade local · WhatsApp Web</p></div>
+    </header>
+    <section id="health-card" class="health-card" data-state="checking" aria-labelledby="health-title">
+      <div class="health-heading"><span class="health-dot" aria-hidden="true"></span><div><p id="health-title" class="health-title">Verificando backend</p><p id="health-detail" class="health-detail">Aguarde um instante.</p></div></div>
+      <dl class="facts"><div><dt>Modelo</dt><dd id="model">—</dd></div><div><dt>Dispositivo</dt><dd id="device">—</dd></div><div><dt>Fila</dt><dd id="queue">—</dd></div></dl>
+    </section>
+    <button id="retry" class="button button-primary" type="button">Testar novamente</button>
+    <section class="section" aria-labelledby="actions-title">
+      <div class="section-heading"><h2 id="actions-title">Ações importantes</h2><span class="section-note">para este computador</span></div>
+      <div class="actions">
+        <button id="install" class="action" type="button"><span><strong>Instalar ou atualizar</strong><small>Python, dependências e modelo</small></span><span class="action-arrow" aria-hidden="true">→</span></button>
+        <button id="start" class="action" type="button"><span><strong>Iniciar backend</strong><small>Executa o serviço local</small></span><span class="action-arrow" aria-hidden="true">→</span></button>
+        <button id="reload" class="action" type="button"><span><strong>Recarregar WhatsApp Web</strong><small>Usar Ctrl + Shift + R na aba</small></span><span class="action-arrow" aria-hidden="true">→</span></button>
+        <button id="extension-path" class="action" type="button"><span><strong>Copiar caminho da extensão</strong><small>Para “Carregar sem compactação”</small></span><span class="action-arrow" aria-hidden="true">→</span></button>
+      </div>
+    </section>
+    <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+    <footer class="privacy"><span aria-hidden="true">●</span> Áudio e texto ficam nesta máquina.</footer>
+  </main>
+  <script src="local-config.js"></script><script src="setup.js"></script>
+</body>
 </html>

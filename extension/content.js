@@ -1,6 +1,7 @@
 (() => {
   "use strict";
   const S = globalThis.WTSelectors;
+  const CACHE_POLICY = globalThis.WTCachePolicy;
   const CACHE_PREFIX = "wt:v1:";
   const CACHE_LIMIT = 1000;
   const rowIds = new WeakMap();
@@ -55,9 +56,17 @@
     for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
     return { audioBase64: btoa(binary), mime: blob.type || "audio/ogg" };
   };
-  async function cacheGet(key) { if (!key) return null; return (await chrome.storage.local.get(key))[key] || null; }
+  async function cacheGet(key) {
+    if (!key) return null;
+    const record = (await chrome.storage.local.get(key))[key] || null;
+    if (!record || CACHE_POLICY.isFresh(record)) return record;
+    await chrome.storage.local.remove(key);
+    report("cache_expired");
+    return null;
+  }
   async function cacheSet(record, id, hash) {
-    const value = { ...record, lastAccessedAt: Date.now() };
+    const createdAt = Number(record.createdAt) || Date.now();
+    const value = { ...record, version: 2, createdAt, expiresAt: CACHE_POLICY.expiresAt(record) || createdAt + CACHE_POLICY.TTL_MS, lastAccessedAt: Date.now() };
     const values = {};
     if (id) values[keyFor(id)] = value;
     if (hash) values[`${CACHE_PREFIX}hash:${hash}`] = value;
@@ -65,6 +74,11 @@
     const all = await chrome.storage.local.get(null);
     const keys = Object.keys(all).filter((key) => key.startsWith(CACHE_PREFIX));
     if (keys.length > CACHE_LIMIT * 2) await chrome.storage.local.remove(keys.sort((a, b) => (all[a].lastAccessedAt || 0) - (all[b].lastAccessedAt || 0)).slice(0, keys.length - CACHE_LIMIT * 2));
+  }
+  async function pruneExpiredCache() {
+    const all = await chrome.storage.local.get(null);
+    const expired = Object.keys(all).filter((key) => key.startsWith(CACHE_PREFIX) && !CACHE_POLICY.isFresh(all[key]));
+    if (expired.length) { await chrome.storage.local.remove(expired); report("cache_pruned", { count: expired.length }); }
   }
   const textNode = (tag, className, text) => { const node = document.createElement(tag); node.className = className; if (text != null) node.textContent = text; return node; };
   function makeUI(row) {
@@ -85,7 +99,7 @@
     action.type = "button";
     action.setAttribute("aria-label", "Transcrever este áudio");
     const bar = textNode("div", "wt-bar");
-    bar.append(textNode("span", "wt-icon", "📝"), status, action, copy, retry);
+    bar.append(status, action, copy, retry);
     wrap.append(bar, result);
     ["click", "mousedown", "mouseup", "pointerdown", "dblclick"].forEach((type) => wrap.addEventListener(type, (event) => event.stopPropagation()));
     copy.addEventListener("click", async () => {
@@ -99,8 +113,11 @@
     retry.addEventListener("click", () => enqueueOnDemand(row));
     row.appendChild(wrap);
     wrap.dataset.messageId = S.messageId(row) || "";
+    wrap.dataset.direction = S.isOutgoing(row) ? "outgoing" : "incoming";
     render({ wrap, status, result, action, copy, retry }, "Pronto", "Clique em Transcrever. O áudio não será reproduzido automaticamente.");
-    return { wrap, status, result, action, copy, retry };
+    const ui = { wrap, status, result, action, copy, retry };
+    restoreCached(row, ui);
+    return ui;
   }
   const uiFromWrap = (wrap) => ({ wrap, status: wrap.querySelector(".wt-status"), result: wrap.querySelector(".wt-result"), action: wrap.querySelector(".wt-action"), copy: wrap.querySelector(".wt-copy"), retry: wrap.querySelector(".wt-retry") });
   function render(ui, state, text = "") {
@@ -113,6 +130,13 @@
     ui.copy.disabled = state !== "Transcrição";
     ui.retry.disabled = state !== "Não foi possível transcrever.";
     ui.wrap.dataset.state = state === "Transcrição" ? "success" : state === "Não foi possível transcrever." ? "error" : state === "Pronto" ? "idle" : "busy";
+  }
+  async function restoreCached(row, ui) {
+    const id = S.messageId(row);
+    const cached = await cacheGet(keyFor(id));
+    if (!cached || !ui.wrap.isConnected || ui.wrap.dataset.state !== "idle" || (id && S.messageId(row) !== id)) return;
+    report("cache_restore", { messageId: shortId(id) });
+    render(ui, "Transcrição", cached.text);
   }
   function rowKey(row) { if (!rowIds.has(row)) rowIds.set(row, `row-${Date.now()}-${++fallbackRowSequence}`); return S.messageId(row) || rowIds.get(row); }
   async function ensureHealth() {
@@ -210,5 +234,6 @@
     if (mutations.some((mutation) => [...mutation.addedNodes].some(isRelevantNode))) schedule();
   }).observe(document.body, { childList: true, subtree: true });
   setInterval(() => { if (document.visibilityState === "visible") scan(); }, 8000);
+  pruneExpiredCache().catch(() => report("cache_prune_error"));
   scan();
 })();
