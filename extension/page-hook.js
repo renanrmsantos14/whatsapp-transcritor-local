@@ -107,7 +107,7 @@
       capture = { done: false, result: null, waiterId: null, marker, scanTimer: null };
       silence();
       scanCapture();
-      capture.scanTimer = setInterval(scanCapture, 100);
+      capture.scanTimer = setInterval(scanCapture, 250);
       return respond(id, { ok: true, armed: true });
     }
     if (action === "capture") {

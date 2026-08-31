@@ -93,7 +93,39 @@
       if (!tracked.canceled) renderMessage(expectedId, "Erro", error?.message || "Não foi possível transcrever.");
     } finally { active.delete(expectedId); }
   }
-  function scan() { for (const row of S.rows()) { const ui = controls.get(row); if (!ui?.host.isConnected) createUI(row); else syncPlacement(row, ui); } }
-  new MutationObserver(() => requestAnimationFrame(scan)).observe(document.body, { childList: true, subtree: true }); scan();
-  addEventListener("resize", () => requestAnimationFrame(scan), { passive: true });
+  function processRow(row, syncExisting = false) {
+    const ui = controls.get(row);
+    if (!ui?.host.isConnected) createUI(row);
+    else if (syncExisting) syncPlacement(row, ui);
+  }
+  function scan(root = document, syncExisting = false, seen = new Set()) {
+    for (const row of S.rows(root)) { if (!row.isConnected || seen.has(row)) continue; seen.add(row); processRow(row, syncExisting); }
+  }
+  function cleanupViews() {
+    for (const [messageId, view] of views) if (!view.row.isConnected) { views.delete(messageId); controls.delete(view.row); }
+  }
+  let scanScheduled = false, fullScanPending = false;
+  const pendingRoots = new Set();
+  function flushScan() {
+    scanScheduled = false; cleanupViews();
+    if (fullScanPending) { fullScanPending = false; pendingRoots.clear(); scan(document, true); return; }
+    const seen = new Set();
+    for (const root of pendingRoots) if (root?.isConnected) scan(root, false, seen);
+    pendingRoots.clear();
+  }
+  function scheduleScan(mutations = []) {
+    if (!mutations.length) fullScanPending = true;
+    for (const mutation of mutations) {
+      const target = mutation.target?.querySelectorAll ? mutation.target : mutation.target?.parentElement;
+      if (target) { pendingRoots.add(target); const row = S.rowForNode(target); if (row) pendingRoots.add(row); }
+      for (const node of mutation.addedNodes || []) {
+        const root = node?.querySelectorAll ? node : node?.parentElement;
+        if (root) pendingRoots.add(root);
+      }
+    }
+    if (scanScheduled) return;
+    scanScheduled = true; requestAnimationFrame(flushScan);
+  }
+  new MutationObserver(scheduleScan).observe(document.body, { childList: true, subtree: true }); scan(document, true);
+  addEventListener("resize", () => scheduleScan(), { passive: true });
 })();

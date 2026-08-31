@@ -4,6 +4,7 @@
   const VOICE_HINTS = '[data-icon="ptt-status"], [aria-label*="voice message" i], [aria-label*="mensagem de voz" i]';
   const AUDIO_HINTS = '[data-testid*="audio" i], [data-icon*="audio" i], audio, [aria-label*="reproduzir áudio" i], [aria-label*="play audio" i]';
   const ID_SELECTOR = "[data-id]";
+  const ROW_SELECTOR = 'div[role="row"], div[data-id]';
 
   function messageId(row) {
     const self = row?.matches?.(ID_SELECTOR) ? row : null;
@@ -60,11 +61,16 @@
   }
 
   function rows(root = document) {
-    const candidates = root.querySelectorAll?.('div[role="row"], div[data-id]') || [];
-    return [...candidates].filter((row) => {
+    const candidates = root.matches?.(ROW_SELECTOR) ? [root] : [];
+    candidates.push(...(root.querySelectorAll?.(ROW_SELECTOR) || []));
+    return candidates.filter((row) => {
       if (!isVoiceNote(row)) return false;
       return !row.parentElement?.closest?.('div[role="row"]');
     });
+  }
+
+  function rowForNode(node) {
+    return node?.closest?.('div[role="row"]') || node?.closest?.('div[data-id]') || null;
   }
 
   function isLastMessage(row, root = document) {
@@ -103,5 +109,5 @@
     return media?.closest?.('div[role="row"], div[data-id]') || null;
   }
 
-  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, bubbleAnchor, isVoiceNote, isOutgoing, isLastMessage, rows, rowForMedia, transportButton, isDownloadButton, diagnostic };
+  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, bubbleAnchor, isVoiceNote, isOutgoing, isLastMessage, rows, rowForNode, rowForMedia, transportButton, isDownloadButton, diagnostic };
 })();
