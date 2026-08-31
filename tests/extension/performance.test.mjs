@@ -15,3 +15,15 @@ test("agrupa mutações e evita varredura completa em cada alteração", () => {
 test("limita o fallback de captura a quatro verificações por segundo", () => {
   assert.match(hook, /setInterval\(scanCapture, 250\)/);
 });
+
+test("compartilha CSS e usa somente um botão por controle", () => {
+  assert.match(content, /const SHARED_SHEET =/);
+  assert.match(content, /root\.adoptedStyleSheets = \[SHARED_SHEET\]/);
+  assert.match(content, /<button class="wt-action"><\/button>/);
+  assert.doesNotMatch(content, /<button class="wt-(?:cancel|copy|retry)"/);
+});
+
+test("captura sem clicar no controle de reprodução", () => {
+  assert.equal(content.match(/\bbutton\.click\(\)/g)?.length, 1);
+  assert.match(content, /Áudio indisponível sem reproduzir/);
+});
