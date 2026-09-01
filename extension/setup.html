@@ -3,46 +3,71 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Transcritor local</title>
+  <title>WhatsApp Transcritor</title>
   <link rel="stylesheet" href="setup.css">
 </head>
 <body>
   <main class="panel">
     <header class="header">
-      <div class="brand-mark" aria-hidden="true">WT</div>
-      <div><p class="eyebrow">CONTROLE LOCAL</p><h1>Transcritor local</h1><p class="subtitle">Privacidade local · WhatsApp Web</p></div>
+      <div class="brand-icon" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <div class="brand-copy">
+        <p class="eyebrow">WHATSAPP TRANSCRITOR</p>
+        <h1>Seu áudio, só nesta máquina.</h1>
+        <p class="subtitle"><span class="privacy-dot" aria-hidden="true"></span>Processamento local</p>
+      </div>
     </header>
-    <section id="health-card" class="health-card" data-state="checking" aria-labelledby="health-title">
-      <div class="health-heading"><span class="health-dot" aria-hidden="true"></span><div><p id="health-title" class="health-title">Verificando backend</p><p id="health-detail" class="health-detail">Aguarde um instante.</p></div></div>
-      <dl class="facts"><div><dt>Versões</dt><dd id="versions">—</dd></div><div><dt>Modelo</dt><dd id="model">—</dd><dd id="device" hidden>—</dd></div><div><dt>Fila</dt><dd id="queue">—</dd></div></dl>
+
+    <section id="health-card" class="health-card" data-state="checking" aria-labelledby="health-title" aria-describedby="health-detail">
+      <div class="health-heading">
+        <span class="health-dot" aria-hidden="true"></span>
+        <div class="health-copy">
+          <p id="health-title" class="health-title" role="status" aria-live="polite">Verificando serviço local</p>
+          <p id="health-detail" class="health-detail">Aguarde um instante.</p>
+        </div>
+      </div>
+      <dl class="facts" aria-label="Detalhes do serviço">
+        <div><dt>Modelo</dt><dd id="model">—</dd></div>
+        <div><dt>Fila</dt><dd id="queue">—</dd></div>
+        <div><dt>Versão</dt><dd id="versions">—</dd></div>
+      </dl>
     </section>
-    <section class="section" aria-labelledby="cache-title">
-      <div class="section-heading"><h2 id="cache-title">Dados locais</h2><span id="cache-usage" class="section-note">—</span></div>
-      <button id="clear-cache" class="button" type="button">Limpar transcrições</button>
-    </section>
-    <section class="section" aria-labelledby="glossary-title">
-      <div class="section-heading"><h2 id="glossary-title">Glossário local</h2><span class="section-note">até 200 termos</span></div>
-      <textarea id="glossary" rows="5" placeholder="Um termo por linha" aria-describedby="glossary-help"></textarea>
-      <p id="glossary-help" class="health-detail">A base TI já é incluída. Estes termos ficam só neste computador.</p>
-      <button id="save-glossary" class="button" type="button">Salvar glossário</button>
-    </section>
-    <section class="section" aria-labelledby="diagnostics-title">
-      <div class="section-heading"><h2 id="diagnostics-title">Diagnóstico</h2></div>
-      <button id="copy-diagnostics" class="button" type="button">Copiar relatório sem conteúdo</button>
-    </section>
-    <button id="retry" class="button button-primary" type="button">Testar novamente</button>
-    <section class="section" aria-labelledby="actions-title">
-      <div class="section-heading"><h2 id="actions-title">Ações importantes</h2><span class="section-note">para este computador</span></div>
-      <div class="actions">
-        <button id="install" class="action" type="button"><span><strong>Instalar ou atualizar</strong><small>Python, dependências e modelo</small></span><span class="action-arrow" aria-hidden="true">→</span></button>
-        <button id="start" class="action" type="button"><span><strong>Iniciar backend</strong><small>Executa o serviço local</small></span><span class="action-arrow" aria-hidden="true">→</span></button>
-        <button id="reload" class="action" type="button"><span><strong>Recarregar WhatsApp Web</strong><small>Usar Ctrl + Shift + R na aba</small></span><span class="action-arrow" aria-hidden="true">→</span></button>
-        <button id="extension-path" class="action" type="button"><span><strong>Copiar caminho da extensão</strong><small>Para “Carregar sem compactação”</small></span><span class="action-arrow" aria-hidden="true">→</span></button>
-        <a id="update" class="action" href="https://github.com/renanrmsantos14/whatsapp-transcritor-local/archive/refs/heads/master.zip" target="_blank" rel="noreferrer"><span><strong>Baixar atualização</strong><small>ZIP mais recente do GitHub</small></span><span class="action-arrow" aria-hidden="true">↓</span></a>
+
+    <button id="retry" class="retry-button" type="button" hidden>Testar novamente</button>
+
+    <section class="disclosure-section">
+      <button id="cache-toggle" class="disclosure" type="button" aria-expanded="false" aria-controls="cache-panel">
+        <span><strong>Dados locais</strong><small id="cache-usage">Cache de transcrições</small></span><span class="chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div id="cache-panel" class="disclosure-panel" hidden>
+        <p class="panel-help">As transcrições ficam no armazenamento local por até 7 dias. Áudio nunca é salvo.</p>
+        <button id="clear-cache" class="button button-secondary" type="button">Limpar transcrições</button>
       </div>
     </section>
+
+    <section class="disclosure-section">
+      <button id="glossary-toggle" class="disclosure" type="button" aria-expanded="false" aria-controls="glossary-panel">
+        <span><strong>Glossário local</strong><small>Até 200 termos personalizados</small></span><span class="chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div id="glossary-panel" class="disclosure-panel" hidden>
+        <label class="sr-only" for="glossary">Termos do glossário</label>
+        <textarea id="glossary" rows="5" maxlength="8192" placeholder="Um termo por linha" aria-describedby="glossary-help"></textarea>
+        <p id="glossary-help" class="panel-help">A base de termos de TI já é incluída. Tudo fica só neste computador.</p>
+        <button id="save-glossary" class="button button-secondary" type="button">Salvar glossário</button>
+      </div>
+    </section>
+
+    <section class="disclosure-section">
+      <button id="diagnostics-toggle" class="disclosure" type="button" aria-expanded="false" aria-controls="diagnostics-panel">
+        <span><strong>Diagnóstico</strong><small>Relatório sem áudio ou texto</small></span><span class="chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div id="diagnostics-panel" class="disclosure-panel" hidden>
+        <p class="panel-help">Útil para investigar falhas sem expor o conteúdo das mensagens.</p>
+        <button id="copy-diagnostics" class="button button-secondary" type="button">Copiar relatório seguro</button>
+      </div>
+    </section>
+
     <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
-    <footer class="privacy"><span aria-hidden="true">●</span> Áudio e texto ficam nesta máquina.</footer>
+    <footer class="privacy"><span class="privacy-lock" aria-hidden="true">●</span> Áudio e texto não saem desta máquina.</footer>
   </main>
   <script src="setup.js"></script>
 </body>

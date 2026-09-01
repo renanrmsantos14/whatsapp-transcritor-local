@@ -44,18 +44,13 @@ O Chrome exige esse reload para mudanças no manifesto, service worker e content
 
 Para executar o fluxo guiado, use `scripts\atualizar.bat`.
 
-O painel da extensão também oferece **Baixar atualização**, que baixa o ZIP público da branch `master`. Extraia o conteúdo e use a nova pasta `extension` em **Carregar sem compactação**. Esse botão não substitui a pasta atual nem recarrega o Chrome sozinho; para uma cópia já clonada, `git pull --ff-only` continua sendo o caminho recomendado.
+O painel da extensão é focado no estado do serviço e nas configurações locais. Atualizações continuam sendo feitas pelos scripts acima; para uma cópia já clonada, `git pull --ff-only` continua sendo o caminho recomendado.
 
 ## Painel de controle
 
-Clique no ícone da extensão para abrir o painel local. Ele mostra se o backend e o modelo estão prontos, além da fila, dispositivo e ações de manutenção:
+Clique no ícone da extensão para abrir o painel **WhatsApp Transcritor**. O resumo mostra se o backend e o modelo estão prontos, além da fila e da versão. **Dados locais**, **Glossário local** e **Diagnóstico** ficam recolhidos até serem necessários; o diagnóstico nunca inclui áudio ou texto das mensagens.
 
-- **Instalar ou atualizar** copia o comando do instalador idempotente. Use no PowerShell do computador destino; ele instala Python, dependências e o modelo.
-- **Iniciar backend** copia o comando para executar o serviço local em modo visível.
-- **Recarregar WhatsApp Web** copia `Ctrl + Shift + R`, que deve ser usado na aba do WhatsApp.
-- **Copiar caminho da extensão** ajuda no passo **Carregar sem compactação** do Chrome.
-
-Por segurança, uma extensão Chrome não pode executar arquivos `.bat` nem controlar abas do sistema sem permissões nativas adicionais. Por isso as ações de manutenção são explícitas e copiáveis; nenhuma delas altera o fluxo normal do WhatsApp.
+Instalação, atualização, inicialização do backend e recarga do WhatsApp continuam explícitas nos scripts e neste README. O popup não executa comandos do sistema nem altera o fluxo normal do WhatsApp.
 
 ## Comportamento
 
