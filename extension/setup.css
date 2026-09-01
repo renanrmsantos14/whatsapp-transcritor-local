@@ -1,4 +1,4 @@
-:root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f7f5; color: #17231e; --muted: #607069; --line: #dce6e0; --surface: #fff; --surface-soft: #f7faf8; --accent: #128c63; --accent-strong: #087f5b; --accent-soft: #e7f5ef; --danger: #b33f39; }
+:root { color-scheme: light dark; font-family: Manrope, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f7f5; color: #17231e; --muted: #607069; --line: #dce6e0; --surface: #fff; --surface-soft: #f7faf8; --accent: #128c63; --accent-strong: #087f5b; --accent-soft: #e7f5ef; --danger: #b33f39; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 360px; background: var(--surface); }
 button, textarea { font: inherit; }
