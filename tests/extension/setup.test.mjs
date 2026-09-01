@@ -33,6 +33,10 @@ test("popup mantém acessibilidade e tema sem dependências externas", () => {
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-color-scheme: dark/);
   assert.match(css, /\.sr-only/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(css, /panel-reveal/);
+  assert.match(css, /status-pulse/);
+  assert.match(css, /:active/);
   assert.doesNotMatch(html + script + css, /😀|📝/u);
 });
 
