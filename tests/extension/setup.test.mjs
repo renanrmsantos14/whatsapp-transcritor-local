@@ -15,6 +15,8 @@ test("popup prioriza saúde local e configurações expansíveis", () => {
   assert.match(html, /Processamento local/);
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /aria-controls="(?:cache|glossary|diagnostics)-panel"/);
+  assert.match(html, /<svg viewBox="0 0 20 20"/);
+  assert.doesNotMatch(html, /⌄/u);
   assert.match(html, /role="status"/);
   for (const removed of ["id=\"install\"", "id=\"start\"", "id=\"reload\"", "id=\"extension-path\"", "id=\"update\"", "github.com"]) assert.doesNotMatch(html, new RegExp(removed));
 });
@@ -36,6 +38,7 @@ test("popup mantém acessibilidade e tema sem dependências externas", () => {
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /panel-reveal/);
   assert.match(css, /status-pulse/);
+  assert.match(css, /rotate\(180deg\)/);
   assert.match(css, /:active/);
   assert.doesNotMatch(html + script + css, /😀|📝/u);
 });
