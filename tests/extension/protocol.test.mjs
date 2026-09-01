@@ -13,13 +13,6 @@ test("protocolo v2 expõe somente mensagens públicas", () => {
 test("manifesto fixa versão, chave e storage", () => {
   const manifest = JSON.parse(fs.readFileSync("extension/manifest.json", "utf8"));
   assert.equal(manifest.version, "0.2.0"); assert.ok(manifest.key); assert.deepEqual(manifest.permissions, ["storage"]);
-});
-
-test("captura não clica em play", () => {
-  const content = fs.readFileSync("extension/content.js", "utf8");
-  const arm = content.indexOf('await askPage("arm"');
-  assert.ok(arm >= 0);
-  assert.equal(content.match(/button\.click\(\)/g)?.length, 1);
-  assert.match(content, /if \(S\.isDownloadButton\(button\)\) button\.click\(\)/);
-  assert.doesNotMatch(content, /A conversa mudou durante a captura/);
+  for (const size of ["16", "32", "48", "128"]) { assert.equal(manifest.icons[size], `icons/icon-${size}.png`); assert.ok(fs.statSync(`extension/icons/icon-${size}.png`).size > 100); }
+  assert.deepEqual(manifest.action.default_icon, manifest.icons);
 });

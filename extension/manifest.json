@@ -5,6 +5,12 @@
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4klfEwxZwfkT39mKGQ4kT/RYlpjzp0pOAbVnfnNc+wVtpsmpcyqeLO5M+65UKV9lZO+MfZbFPe0L5w9xf7bcKMq4kBpAWLYR2dTB87oU8pKz6K2G0JRYu7uGPqsTzEEWLCMTzRbmK1y1YrJdmX7A1C6tiSvmA3Opp8mE9GcgMNZlPsWnpcnzyJPmkDPDZWT2/2MXjoz/DaiWX5NQcoyLwO+0fzBnKMxDQSKeHOOUCHhjDDraykaQsVafzSJKrP2rNhaUmMXPh8UyenHZEHS8Dd3bvZvxhpNatAlgRtJWBqGSLfeHmHhlZ/Hrh+Dhv8iro31AB5MjTOiKtS+VAdkBvQIDAQAB",
   "description": "Transcreve notas de voz recebidas e enviadas no WhatsApp Web localmente.",
   "minimum_chrome_version": "142",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": ["storage"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
@@ -13,6 +19,12 @@
   "background": { "service_worker": "background.js" },
   "action": {
     "default_title": "Transcritor local",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
     "default_popup": "setup.html"
   },
   "content_scripts": [
