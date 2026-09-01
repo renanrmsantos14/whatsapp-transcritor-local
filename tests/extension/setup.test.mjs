@@ -5,6 +5,7 @@ import fs from "node:fs";
 const html = fs.readFileSync(new URL("../../extension/setup.html", import.meta.url), "utf8");
 const script = fs.readFileSync(new URL("../../extension/setup.js", import.meta.url), "utf8");
 const css = fs.readFileSync(new URL("../../extension/setup.css", import.meta.url), "utf8");
+const font = fs.readFileSync(new URL("../../extension/fonts/manrope-latin-wght.woff2", import.meta.url));
 
 test("popup prioriza saúde local e configurações expansíveis", () => {
   for (const id of ["health-card", "health-title", "health-detail", "model", "queue", "versions", "retry", "cache-toggle", "cache-panel", "glossary-toggle", "glossary-panel", "diagnostics-toggle", "diagnostics-panel", "glossary", "clear-cache", "save-glossary", "copy-diagnostics", "feedback"]) {
@@ -33,4 +34,10 @@ test("popup mantém acessibilidade e tema sem dependências externas", () => {
   assert.match(css, /prefers-color-scheme: dark/);
   assert.match(css, /\.sr-only/);
   assert.doesNotMatch(html + script + css, /😀|📝/u);
+});
+
+test("popup embute Manrope localmente", () => {
+  assert.match(css, /@font-face/);
+  assert.match(css, /fonts\/manrope-latin-wght\.woff2/);
+  assert.ok(font.length > 1000);
 });
