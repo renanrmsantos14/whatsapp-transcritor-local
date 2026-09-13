@@ -3,5 +3,7 @@ from .transcriber import LocalTranscriber
 
 
 if __name__ == "__main__":
-    LocalTranscriber(MODEL_DIR).warmup()
-    print("Modelo Whisper pronto")
+    transcriber = LocalTranscriber(MODEL_DIR)
+    transcriber.warmup("fast")
+    transcriber.warmup("balanced")
+    print("Modelos Whisper prontos")

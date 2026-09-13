@@ -6,13 +6,16 @@
   const ID_SELECTOR = "[data-id]";
   const ROW_SELECTOR = 'div[role="row"], div[data-id]';
 
-  function messageId(row) {
+  function messageNode(row) {
     const self = row?.matches?.(ID_SELECTOR) ? row : null;
     const media = row?.querySelector?.(VOICE_HINTS) || row?.querySelector?.(AUDIO_HINTS);
     const mediaMessage = media?.closest?.(ID_SELECTOR);
     const anchored = mediaMessage && (!row?.contains || row.contains(mediaMessage)) ? mediaMessage : null;
-    const node = self || anchored || row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR);
-    return node?.getAttribute?.("data-id") || null;
+    return self || anchored || row?.querySelector?.(ID_SELECTOR) || row?.closest?.(ID_SELECTOR) || null;
+  }
+
+  function messageId(row) {
+    return messageNode(row)?.getAttribute?.("data-id") || null;
   }
 
   function bubbleAnchor(row) {
@@ -103,11 +106,30 @@
     return /download|baixar|descargar/i.test(button?.textContent || button?.getAttribute?.("aria-label") || "");
   }
 
+  function isUnplayedVoice(row) {
+    const status = row?.querySelector?.('[data-icon*="ptt-status" i], [data-testid*="ptt-status" i]');
+    if (!status) return null;
+    const nodes = [status, ...(status.querySelectorAll?.("[data-icon], [data-testid], [aria-label], [title]") || [])];
+    const hints = nodes.map((node) => ["data-icon", "data-testid", "aria-label", "title"].map((name) => node.getAttribute?.(name) || "").join(" ")).join(" ").toLowerCase();
+    if (/\b(unplayed|unheard|not[- ]?listened|status-ptt-green)\b|n[aã]o (ouvido|reproduzido|escutado)/i.test(hints)) return true;
+    if (/\b(played|heard|listened|status-ptt-blue)\b|\b(ouvido|reproduzido|escutado)\b/i.test(hints)) return false;
+    try {
+      const color = getComputedStyle(status).color || "";
+      const rgb = color.match(/rgba?\(\s*(\d+)\D+(\d+)\D+(\d+)/i);
+      if (rgb) {
+        const green = Number(rgb[2]), blue = Number(rgb[3]);
+        if (green > blue + 15) return true;
+        if (blue > green + 15) return false;
+      }
+    } catch (_) { }
+    return null;
+  }
+
   function rowForMedia(mediaId) {
     if (!mediaId) return null;
     const media = document.querySelector?.(`[data-wt-media-id="${mediaId}"]`);
     return media?.closest?.('div[role="row"], div[data-id]') || null;
   }
 
-  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageId, bubbleAnchor, isVoiceNote, isOutgoing, isLastMessage, rows, rowForNode, rowForMedia, transportButton, isDownloadButton, diagnostic };
+  globalThis.WTSelectors = { VOICE_HINTS, AUDIO_HINTS, messageNode, messageId, bubbleAnchor, isVoiceNote, isOutgoing, isUnplayedVoice, isLastMessage, rows, rowForNode, rowForMedia, transportButton, isDownloadButton, diagnostic };
 })();

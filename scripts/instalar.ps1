@@ -24,7 +24,7 @@ if ([IO.Path]::GetFullPath($root).TrimEnd("\") -ne [IO.Path]::GetFullPath($insta
     }
     foreach ($folder in @("server", "extension", "scripts")) { New-Item -ItemType Directory -Force -Path (Join-Path $installRoot $folder) | Out-Null }
     Copy-Item -Path (Join-Path $root "server\*.py"), (Join-Path $root "server\requirements.*") -Destination (Join-Path $installRoot "server") -Force
-    Get-ChildItem (Join-Path $root "extension") -File | Where-Object Name -ne "local-config.js" | Copy-Item -Destination (Join-Path $installRoot "extension") -Force
+    Copy-Item -Path (Join-Path $root "extension\*") -Destination (Join-Path $installRoot "extension") -Recurse -Force
     Copy-Item -Path (Join-Path $root "scripts\*") -Destination (Join-Path $installRoot "scripts") -Force
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $installRoot "scripts\instalar.ps1")
     $installExitCode = $LASTEXITCODE
@@ -128,5 +128,6 @@ $link.WindowStyle = 7
 $link.Save()
 
 Write-Host "Instalação concluída."
-Write-Host "Extensão: $([IO.Path]::GetFullPath((Join-Path $root 'extension')))"
+Write-Host "Extensão estável para carregar no Chrome: $([IO.Path]::GetFullPath((Join-Path $root 'extension')))"
+Write-Host "Em chrome://extensions, use Carregar sem compactação e selecione exatamente essa pasta."
 Write-Host "Diagnóstico: scripts\iniciar.bat"

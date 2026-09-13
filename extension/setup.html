@@ -34,6 +34,33 @@
 
     <button id="retry" class="retry-button" type="button" hidden>Testar novamente</button>
 
+    <section class="quality-card" aria-labelledby="quality-title">
+      <div class="quality-heading">
+        <div>
+          <p id="quality-title" class="quality-title">Velocidade da transcrição</p>
+          <p id="quality-choice" class="quality-choice" aria-live="polite">Equilibrado</p>
+        </div>
+        <span id="quality-saving" class="quality-saving" role="status" aria-live="polite"></span>
+      </div>
+      <label class="sr-only" for="quality">Relação entre velocidade e precisão</label>
+      <input id="quality" class="quality-range" type="range" min="1" max="3" step="1" value="2" aria-describedby="quality-help quality-scale">
+      <div id="quality-scale" class="quality-scale" aria-hidden="true"><span>Mais rápido</span><span>Mais preciso</span></div>
+      <p id="quality-help" class="quality-help">Boa velocidade sem abrir mão de muitos detalhes.</p>
+    </section>
+
+    <section class="automatic-card" aria-labelledby="automatic-title">
+      <div class="automatic-copy">
+        <p id="automatic-title" class="automatic-title">Transcrever automaticamente</p>
+        <p class="automatic-help">Transcreve áudios recebidos ainda não escutados, inclusive antigos carregados na conversa.</p>
+      </div>
+      <label class="switch">
+        <input id="automatic" type="checkbox" aria-describedby="automatic-warning">
+        <span class="switch-track" aria-hidden="true"><span></span></span>
+        <span class="sr-only">Ativar transcrição automática</span>
+      </label>
+      <p id="automatic-warning" class="automatic-warning">A captura pode iniciar o áudio sem som quando necessário.</p>
+    </section>
+
     <section class="disclosure-section">
       <button id="cache-toggle" class="disclosure" type="button" aria-expanded="false" aria-controls="cache-panel">
         <span><strong>Dados locais</strong><small id="cache-usage">Cache de transcrições</small></span><span class="disclosure-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><path d="m5 7.5 5 5 5-5"></path></svg></span>

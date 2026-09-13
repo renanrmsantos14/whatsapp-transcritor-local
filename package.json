@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.2.0",
   "scripts": {
+    "dev": "node scripts/dev-server.mjs",
     "test:browser": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/browser/run.ps1"
   }
 }

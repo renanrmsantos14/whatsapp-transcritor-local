@@ -8,7 +8,7 @@ const css = fs.readFileSync(new URL("../../extension/setup.css", import.meta.url
 const font = fs.readFileSync(new URL("../../extension/fonts/manrope-latin-wght.woff2", import.meta.url));
 
 test("popup prioriza saúde local e configurações expansíveis", () => {
-  for (const id of ["health-card", "health-title", "health-detail", "model", "queue", "versions", "retry", "cache-toggle", "cache-panel", "glossary-toggle", "glossary-panel", "diagnostics-toggle", "diagnostics-panel", "glossary", "clear-cache", "save-glossary", "copy-diagnostics", "feedback"]) {
+  for (const id of ["health-card", "health-title", "health-detail", "model", "queue", "versions", "retry", "quality", "quality-choice", "quality-help", "quality-saving", "automatic", "automatic-warning", "cache-toggle", "cache-panel", "glossary-toggle", "glossary-panel", "diagnostics-toggle", "diagnostics-panel", "glossary", "clear-cache", "save-glossary", "copy-diagnostics", "feedback"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   assert.match(html, /WhatsApp Transcritor/);
@@ -18,6 +18,10 @@ test("popup prioriza saúde local e configurações expansíveis", () => {
   assert.match(html, /<svg viewBox="0 0 20 20"/);
   assert.doesNotMatch(html, /⌄/u);
   assert.match(html, /role="status"/);
+  assert.match(html, /Mais rápido/);
+  assert.match(html, /Mais preciso/);
+  assert.match(html, /Transcrever automaticamente/);
+  assert.match(html, /pode iniciar o áudio sem som/);
   for (const removed of ["id=\"install\"", "id=\"start\"", "id=\"reload\"", "id=\"extension-path\"", "id=\"update\"", "github.com"]) assert.doesNotMatch(html, new RegExp(removed));
 });
 
@@ -28,6 +32,8 @@ test("popup mantém contratos, estados e validação local", () => {
   assert.match(script, /glossary\.length > 200/);
   assert.match(script, /new Blob\(\[JSON\.stringify\(glossary\)\]\)\.size > 8192/);
   assert.match(script, /window\.confirm/);
+  for (const mode of ["fast", "balanced", "precise"]) assert.match(script, new RegExp(mode));
+  assert.match(script, /autoTranscribe/);
 });
 
 test("popup mantém acessibilidade e tema sem dependências externas", () => {

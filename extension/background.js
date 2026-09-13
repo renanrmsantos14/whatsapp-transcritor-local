@@ -30,7 +30,7 @@ async function dispatch(message) {
     case "HEALTH_CHECK": return { health: await api("/health") };
     case "CREATE_JOB": {
       await WTStorage.metric("attempts"); const form = new FormData(); form.append("audio", decodeAudio(message.audioBase64, message.mime), "whatsapp.ogg");
-      const settings = await WTStorage.settingsGet(); form.append("glossary", JSON.stringify([...settings.defaultGlossary, ...settings.glossary]));
+      const settings = await WTStorage.settingsGet(); form.append("glossary", JSON.stringify([...settings.defaultGlossary, ...settings.glossary])); form.append("transcription_mode", settings.transcriptionMode);
       return { job: await api("/jobs", { method: "POST", body: form }) };
     }
     case "GET_JOB": {

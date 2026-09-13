@@ -19,6 +19,7 @@ class Job:
     job_id: str
     path: Path
     hotwords: list[str]
+    transcription_mode: str = "balanced"
     state: str = "queued"
     stage: str = "queued"
     created_at: float = field(default_factory=time.monotonic)
@@ -36,14 +37,14 @@ def _worker_main(commands: mp.Queue, results: mp.Queue, model_dir: str, idle_sec
             return
         if command is None:
             return
-        job_id, path, hotwords = command
+        job_id, path, hotwords, transcription_mode = command
         try:
             results.put({"job_id": job_id, "event": "stage", "stage": "preparing"})
             transcriber = transcriber or LocalTranscriber(Path(model_dir))
-            transcriber.warmup()
+            transcriber.warmup(transcription_mode)
             results.put({"job_id": job_id, "event": "stage", "stage": "transcribing"})
             started = time.perf_counter()
-            value = transcriber.transcribe(Path(path), hotwords)
+            value = transcriber.transcribe(Path(path), hotwords, transcription_mode)
             results.put({"job_id": job_id, "event": "completed", "result": {
                 "text": value.text, "language": value.language,
                 "language_probability": value.language_probability,
@@ -78,12 +79,12 @@ class JobManager:
         with self._lock:
             return len(self._pending) + (1 if self._active else 0)
 
-    def create(self, path: Path, hotwords: list[str]) -> Job:
+    def create(self, path: Path, hotwords: list[str], transcription_mode: str = "balanced") -> Job:
         with self._lock:
             self._cleanup_locked()
             if self.queue_depth >= self.max_jobs:
                 raise OverflowError("queue_full")
-            job = Job(uuid.uuid4().hex, path, hotwords)
+            job = Job(uuid.uuid4().hex, path, hotwords, transcription_mode)
             self._jobs[job.job_id] = job
             self._pending.append(job.job_id)
             return job
@@ -168,4 +169,4 @@ class JobManager:
                     job = self._jobs[self._pending.popleft()]
                     self._spawn_worker_locked()
                     job.state = job.stage = "preparing"; job.started_at = time.monotonic(); self._active = job.job_id
-                    self._commands.put((job.job_id, str(job.path), job.hotwords))
+                    self._commands.put((job.job_id, str(job.path), job.hotwords, job.transcription_mode))

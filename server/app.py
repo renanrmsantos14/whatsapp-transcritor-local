@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .jobs import Job, JobManager
+from .triage import classify_intake
 from .transcriber import MODEL_REPOSITORY, MODEL_REVISION
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,21 +98,31 @@ def _job_payload(job: Job) -> dict:
 @app.get("/health", dependencies=[Depends(require_token)])
 async def health() -> dict:
     return {"success": True, "extension_version": "0.2.0", "backend_version": "0.2.0", "api_version": 2, "compatible": True,
-            "model": {"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "profile": "small/int8"}, "state": "ready", "device": "cpu",
+            "model": {"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "profile": "adaptável/int8"}, "state": "ready", "device": "cpu",
             "queue": app.state.jobs.snapshot(), "capabilities": ["jobs", "cancel", "vad", "language_detection", "hotwords"]}
 
+@app.post("/v1/triage", dependencies=[Depends(require_token)])
+async def triage(payload: dict) -> dict:
+    messages = payload.get("messages") if isinstance(payload, dict) else None
+    if not isinstance(messages, list) or not messages:
+        raise failure("invalid_request", "Triagem sem mensagens", False, 400)
+    if not str(payload.get("senderPhone") or "").strip():
+        raise failure("invalid_request", "Triagem sem telefone", False, 400)
+    return {"data": classify_intake(payload)}
+
 @app.post("/jobs", status_code=202, dependencies=[Depends(require_token)])
-async def create_job(audio: UploadFile = File(...), glossary: str = Form("[]")) -> JSONResponse:
+async def create_job(audio: UploadFile = File(...), glossary: str = Form("[]"), transcription_mode: str = Form("balanced")) -> JSONResponse:
     jobs: JobManager = app.state.jobs
     if jobs.queue_depth >= jobs.max_jobs: raise failure("queue_full", "Fila de transcrição cheia", True, 429)
     try: hotwords = json.loads(glossary)
     except json.JSONDecodeError: raise failure("invalid_request", "Glossário inválido", False, 400)
     if not isinstance(hotwords, list) or len(hotwords) > 200 or any(not isinstance(term, str) for term in hotwords): raise failure("invalid_request", "Glossário inválido", False, 400)
+    if transcription_mode not in {"fast", "balanced", "precise"}: raise failure("invalid_request", "Preferência de transcrição inválida", False, 400)
     path = await _store_upload(audio)
     try:
         duration = _media_duration(path)
         if duration and duration > MAX_DURATION_SECONDS: raise failure("audio_too_long", "Áudio excede 10 minutos", False, 413)
-        try: job = jobs.create(path, hotwords)
+        try: job = jobs.create(path, hotwords, transcription_mode)
         except OverflowError: raise failure("queue_full", "Fila de transcrição cheia", True, 429)
         LOGGER.info("Job criado (bytes=%d, fila=%d)", path.stat().st_size, jobs.queue_depth)
         return JSONResponse(status_code=202, content={"success": True, "job_id": job.job_id, "state": job.state})

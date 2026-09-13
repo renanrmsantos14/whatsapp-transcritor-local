@@ -12,9 +12,9 @@ class FakeJobs:
     @property
     def queue_depth(self): return 3 if self.full else len([j for j in self.jobs.values() if j.state not in {"completed", "failed", "canceled"}])
     def snapshot(self): return {"depth": self.queue_depth, "capacity": 3, "active": False}
-    def create(self, path, hotwords):
+    def create(self, path, hotwords, transcription_mode="balanced"):
         if self.full: raise OverflowError
-        job = Job("job-1", path, hotwords); self.jobs[job.job_id] = job; return job
+        job = Job("job-1", path, hotwords, transcription_mode); self.jobs[job.job_id] = job; return job
     def get(self, job_id): return self.jobs.get(job_id)
     def cancel(self, job_id):
         job = self.jobs.get(job_id)
@@ -60,4 +60,15 @@ def test_validation_queue_and_missing_job(monkeypatch):
         full = request("POST", "/jobs", headers={"X-Local-Token": "test-token"}, files={"audio": ("note.ogg", b"OggS" + b"\0" * 32, "audio/ogg")})
         assert full.status_code == 429 and full.json()["error"]["retryable"] is True
         assert request("GET", "/jobs/lost", headers={"X-Local-Token": "test-token"}).json()["error"]["code"] == "job_lost"
+    finally: token.unlink(missing_ok=True)
+
+def test_transcription_mode_is_validated_and_forwarded(monkeypatch):
+    token, jobs = setup(monkeypatch)
+    try:
+        headers = {"X-Local-Token": "test-token"}
+        created = request("POST", "/jobs", headers=headers, files={"audio": ("note.ogg", b"OggS" + b"\0" * 32, "audio/ogg")}, data={"transcription_mode": "fast"})
+        assert created.status_code == 202 and jobs.jobs["job-1"].transcription_mode == "fast"
+        jobs.jobs.clear()
+        invalid = request("POST", "/jobs", headers=headers, files={"audio": ("note.ogg", b"OggS" + b"\0" * 32, "audio/ogg")}, data={"transcription_mode": "turbo"})
+        assert invalid.status_code == 400 and invalid.json()["error"]["code"] == "invalid_request"
     finally: token.unlink(missing_ok=True)

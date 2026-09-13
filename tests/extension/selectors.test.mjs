@@ -27,6 +27,7 @@ test("usa o data-id do áudio em vez de um id interno de mensagem encaminhada", 
     contains: (node) => node === audioMessage,
     querySelector: (selector) => selector.includes("ptt-status") ? voiceHint : forwardedId,
   };
+  assert.equal(selectors.messageNode(row), audioMessage);
   assert.equal(selectors.messageId(row), "false_current_chat_audio");
 });
 
@@ -61,6 +62,22 @@ test("identifica quando o áudio é a última mensagem do chat", () => {
   const root = { querySelectorAll: () => [first, last] };
   assert.equal(selectors.isLastMessage(first, root), false);
   assert.equal(selectors.isLastMessage(last, root), true);
+});
+
+test("distingue áudio não ouvido, ouvido e estado incerto", () => {
+  const status = (icon, color = "") => ({
+    getAttribute: (name) => name === "data-icon" ? icon : "",
+    querySelectorAll: () => [],
+    visualStyle: { color },
+  });
+  const row = (node) => ({ querySelector: () => node });
+
+  assert.equal(selectors.isUnplayedVoice(row(status("status-ptt-green"))), true);
+  assert.equal(selectors.isUnplayedVoice(row(status("status-ptt-blue"))), false);
+  assert.equal(selectors.isUnplayedVoice(row(status("ptt-status", "rgb(0, 168, 132)"))), true);
+  assert.equal(selectors.isUnplayedVoice(row(status("ptt-status", "rgb(83, 189, 235)"))), false);
+  assert.equal(selectors.isUnplayedVoice(row(status("ptt-status"))), null);
+  assert.equal(selectors.isUnplayedVoice({ querySelector: () => null }), null);
 });
 
 test("manifesto mantém permissões mínimas e worker como ponte local", () => {

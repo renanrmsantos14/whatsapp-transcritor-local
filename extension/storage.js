@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const PREFIX = "wt:v2:", V1 = "wt:v1:", TTL = 7 * 86400000, LIMIT = 500, MAX_BYTES = 8 * 1024 * 1024;
+  const PREFIX = "wt:v2:", V1 = "wt:v1:", POINTER_VERSION = 1, TTL = 7 * 86400000, LIMIT = 500, MAX_BYTES = 8 * 1024 * 1024;
   const DEFAULT_TERMS = ["Betinhos", "Congonhas", "Guarulhos", "Viracopos", "GRU", "CGH", "VCP", "Dataverse", "Power Apps", "Power Automate", "SharePoint"];
   const get = (keys) => chrome.storage.local.get(keys), set = (values) => chrome.storage.local.set(values), remove = (keys) => chrome.storage.local.remove(keys);
   const sha = async (text) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -21,7 +21,6 @@
       if (!key.startsWith(V1) || !value?.text || Date.now() - Number(value.createdAt || 0) > TTL) continue;
       const audioHash = value.audioHash || await sha(value.text);
       writes[`${PREFIX}transcript:${audioHash}`] = { text: value.text, language: value.language || "", createdAt: value.createdAt, expiresAt: Number(value.createdAt) + TTL, lastAccessedAt: Date.now() };
-      if (value.messageId) writes[`${PREFIX}message:${await sha(value.messageId)}`] = { audioHash, expiresAt: Number(value.createdAt) + TTL };
       deletes.push(key);
     }
     if (Object.keys(writes).length) await set(writes);
@@ -31,7 +30,7 @@
   async function cacheGet(messageId, audioHash) {
     const messageKey = messageId ? `${PREFIX}message:${await sha(messageId)}` : null;
     const pointer = messageKey ? (await get(messageKey))[messageKey] : null;
-    const hash = audioHash || pointer?.audioHash;
+    const hash = audioHash || (pointer?.bindingVersion === POINTER_VERSION ? pointer.audioHash : null);
     if (!hash) return null;
     const key = `${PREFIX}transcript:${hash}`, value = (await get(key))[key];
     if (!value || Number(value.expiresAt) <= Date.now()) { if (value) await remove(key); return null; }
@@ -39,17 +38,21 @@
   }
   async function cacheSet(messageId, audioHash, result) {
     const now = Date.now(), values = { [`${PREFIX}transcript:${audioHash}`]: { ...result, createdAt: now, expiresAt: now + TTL, lastAccessedAt: now } };
-    if (messageId) values[`${PREFIX}message:${await sha(messageId)}`] = { audioHash, expiresAt: now + TTL };
+    if (messageId) values[`${PREFIX}message:${await sha(messageId)}`] = { audioHash, expiresAt: now + TTL, bindingVersion: POINTER_VERSION };
     await set(values); await prune();
   }
   async function settingsGet() {
     const value = (await get(`${PREFIX}settings`))[`${PREFIX}settings`] || {};
-    return { glossary: Array.isArray(value.glossary) ? value.glossary : [], defaultGlossary: DEFAULT_TERMS };
+    return { glossary: Array.isArray(value.glossary) ? value.glossary : [], defaultGlossary: DEFAULT_TERMS, transcriptionMode: ["fast", "balanced", "precise"].includes(value.transcriptionMode) ? value.transcriptionMode : "balanced", autoTranscribe: value.autoTranscribe === true, muteAudio: value.muteAudio !== false };
   }
   async function settingsUpdate(settings) {
+    const current = await settingsGet();
     const glossary = [...new Set((settings.glossary || []).map((x) => String(x).trim()).filter(Boolean))];
     if (glossary.length > 200 || new Blob([JSON.stringify(glossary)]).size > 8192) throw new Error("glossary_limit");
-    await set({ [`${PREFIX}settings`]: { glossary } }); return settingsGet();
+    const transcriptionMode = ["fast", "balanced", "precise"].includes(settings.transcriptionMode) ? settings.transcriptionMode : current.transcriptionMode;
+    const autoTranscribe = typeof settings.autoTranscribe === "boolean" ? settings.autoTranscribe : current.autoTranscribe;
+    const muteAudio = typeof settings.muteAudio === "boolean" ? settings.muteAudio : current.muteAudio;
+    await set({ [`${PREFIX}settings`]: { glossary: "glossary" in settings ? glossary : current.glossary, transcriptionMode, autoTranscribe, muteAudio } }); return settingsGet();
   }
   async function diagnostics() {
     const all = await get(null), keys = Object.keys(all), transcriptKeys = keys.filter((key) => key.startsWith(`${PREFIX}transcript:`));
