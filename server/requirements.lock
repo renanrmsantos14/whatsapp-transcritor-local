@@ -12,6 +12,12 @@ annotated-types==0.8.0 \
     --hash=sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7 \
     --hash=sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
     # via pydantic
+httpcore2==2.13.1 --hash=sha256:e1e05d4f25f7d7d496bfb96748f6f4b67657b03da069b3a68c36069f3db73d0a
+httpx2==2.13.1 --hash=sha256:6dff50fabc270ee5fd25d845d0b078ed20564579744d6d962850975996d2f9a4
+tenacity==9.1.4 --hash=sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55
+truststore==0.10.4 --hash=sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981
+typesafe-sdk==0.7.2 --hash=sha256:0a961148187d52e18276ed7f2d02617cfac48e3b97673cb631a8749397d43d1e
+
 anyio==4.14.2 \
     --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494 \
     --hash=sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f
@@ -599,7 +605,7 @@ typing-inspection==0.4.4 \
     # via
     #   fastapi
     #   pydantic
-uvicorn[standard]==0.35.0 \
+uvicorn==0.35.0 \
     --hash=sha256:197535216b25ff9b785e29a0b79199f55222193d47f820816e7da751e9bc8d4a \
     --hash=sha256:bc662f087f7cf2ce11a1d7fd70b90c9f98ef2e2831556dd078d131b96cc94a01
     # via -r server/requirements.in
@@ -868,3 +874,4 @@ setuptools==84.0.0 \
     --hash=sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670 \
     --hash=sha256:f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73
     # via ctranslate2
+tzdata==2026.4 --hash=sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81

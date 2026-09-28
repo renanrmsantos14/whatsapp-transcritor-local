@@ -12,7 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .jobs import Job, JobManager
-from .triage import classify_intake
 from .transcriber import MODEL_REPOSITORY, MODEL_REVISION
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +32,9 @@ LOGGER.setLevel(logging.INFO); LOGGER.propagate = False
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    application.state.assistant.start()
     yield
+    await application.state.assistant.stop()
     application.state.jobs.stop()
 
 app = FastAPI(title="WhatsApp Local Transcriber", version="0.2.0", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -45,7 +46,7 @@ def failure(code: str, message: str, retryable: bool, status: int) -> HTTPExcept
 
 @app.exception_handler(HTTPException)
 async def http_error(_, exc: HTTPException) -> JSONResponse:
-    detail = exc.detail if isinstance(exc.detail, dict) and exc.detail.get("success") is False else {"success": False, "error": {"code": "http_error", "message": "Falha na requisição", "retryable": exc.status_code >= 500}}
+    detail = exc.detail if isinstance(exc.detail, dict) and exc.detail.get("success") is False else {"success": False, "error": {"code": "http_error", "message": exc.detail if isinstance(exc.detail, str) else "Falha na requisição", "retryable": exc.status_code >= 500}}
     return JSONResponse(status_code=exc.status_code, content=detail)
 
 @app.exception_handler(RequestValidationError)
@@ -60,6 +61,9 @@ async def require_token(supplied: Annotated[str | None, Header(alias="X-Local-To
     expected = _token()
     if not expected or not supplied or not hmac.compare_digest(supplied, expected):
         raise failure("unauthorized", "Token local inválido", False, 401)
+
+from .assistant_api import install_assistant
+install_assistant(app, _token)
 
 def _supported_signature(path: Path) -> bool:
     with path.open("rb") as stream: header = stream.read(16)
@@ -100,15 +104,6 @@ async def health() -> dict:
     return {"success": True, "extension_version": "0.2.0", "backend_version": "0.2.0", "api_version": 2, "compatible": True,
             "model": {"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "profile": "adaptável/int8"}, "state": "ready", "device": "cpu",
             "queue": app.state.jobs.snapshot(), "capabilities": ["jobs", "cancel", "vad", "language_detection", "hotwords"]}
-
-@app.post("/v1/triage", dependencies=[Depends(require_token)])
-async def triage(payload: dict) -> dict:
-    messages = payload.get("messages") if isinstance(payload, dict) else None
-    if not isinstance(messages, list) or not messages:
-        raise failure("invalid_request", "Triagem sem mensagens", False, 400)
-    if not str(payload.get("senderPhone") or "").strip():
-        raise failure("invalid_request", "Triagem sem telefone", False, 400)
-    return {"data": classify_intake(payload)}
 
 @app.post("/jobs", status_code=202, dependencies=[Depends(require_token)])
 async def create_job(audio: UploadFile = File(...), glossary: str = Form("[]"), transcription_mode: str = Form("balanced")) -> JSONResponse:

@@ -25,8 +25,59 @@ function decodeAudio(value, mime) {
   try { const binary = atob(value), bytes = new Uint8Array(binary.length); for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i); return new Blob([bytes], { type: mime || "audio/ogg" }); }
   catch (_) { throw { code: "capture_failed", message: "Codificação de áudio inválida", retryable: false }; }
 }
-async function dispatch(message) {
+async function dispatch(message, sender) {
   switch (message.type) {
+    case "ASSISTANT_PANEL": {
+      if (sender.tab) throw { code: "sender_not_allowed", message: "Abra o painel pelo ícone da extensão." };
+      const result = await api("/assistant/api/ticket", { method: "POST" });
+      await chrome.tabs.create({ url: `${WT_API}/assistant#${encodeURIComponent(result.ticket)}` });
+      return {};
+    }
+    case "ASSISTANT_BINDINGS_GET": {
+      if (!sender.tab) throw { code: "sender_not_allowed", message: "Origem inválida." };
+      const saved = await chrome.storage.local.get({ assistantOpaqueBindings: {} });
+      return { bindings: saved.assistantOpaqueBindings };
+    }
+    case "ASSISTANT_BINDINGS_SAVE": {
+      if (!sender.tab || !Array.isArray(message.ids) || message.ids.length > 500 ||
+          message.ids.some(id => typeof id !== "string" || !id || id.length > 500) ||
+          typeof message.conversationId !== "string" || !/^local:[a-f0-9-]{36}$/.test(message.conversationId) ||
+          typeof message.name !== "string" || message.name.length > 160) throw { code: "invalid_request", message: "Vínculos inválidos." };
+      const saved = await chrome.storage.local.get({ assistantOpaqueBindings: {} });
+      const bindings = Object.assign(Object.create(null), saved.assistantOpaqueBindings);
+      for (const id of message.ids) bindings[id] = { id: message.conversationId, name: message.name };
+      await chrome.storage.local.set({ assistantOpaqueBindings: bindings });
+      return {};
+    }
+    case "ASSISTANT_PERMISSION": {
+      return { permission: await api(`/assistant/api/permission/${encodeURIComponent(message.conversationId)}`) };
+    }
+    case "ASSISTANT_LOCAL_ENABLE": {
+      const conversation = message.conversation;
+      if (!sender.tab || !conversation || typeof conversation.id !== "string" || typeof conversation.name !== "string") throw { code: "invalid_request", message: "Conversa inválida." };
+      const permission = await api(`/assistant/api/permission/${encodeURIComponent(conversation.id)}`);
+      if (message.automatic) return await api("/assistant/api/auto-collect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: conversation.id, name: conversation.name, collect: true, external: false }) });
+      if (!permission.collect) await api("/assistant/api/consent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: conversation.id, name: conversation.name, collect: true, external: false }) });
+      return {};
+    }
+    case "ASSISTANT_INGEST": {
+      if (!sender.tab || !Array.isArray(message.messages) || message.messages.length > 500) throw { code: "invalid_request", message: "Lote inválido." };
+      const permission = await api(`/assistant/api/permission/${encodeURIComponent(message.conversationId)}`);
+      if (!permission.collect) throw { code: "unauthorized", message: "Coleta não autorizada." };
+      // Only existing cache is read; this path never creates a transcription job.
+      const messages = [];
+      for (const source of message.messages) {
+        const item = { ...source };
+        if (item.kind === "audio") {
+          const cached = await WTStorage.cacheGet(item.id, null);
+          item.text = cached?.text || "";
+          item.audio_missing = !item.text;
+        }
+        messages.push(item);
+      }
+      for (let start = 0; start < messages.length; start += 5) await api("/assistant/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: message.conversationId, messages: messages.slice(start, start + 5) }) });
+      return {};
+    }
     case "HEALTH_CHECK": return { health: await api("/health") };
     case "CREATE_JOB": {
       await WTStorage.metric("attempts"); const form = new FormData(); form.append("audio", decodeAudio(message.audioBase64, message.mime), "whatsapp.ogg");
@@ -50,6 +101,6 @@ async function dispatch(message) {
 }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!allowed(sender) || !WTProtocol.isKnown(message?.type)) { sendResponse({ ok: false, error: { code: "sender_not_allowed", message: "Origem não permitida", retryable: false } }); return false; }
-  dispatch(message).then((value) => sendResponse({ ok: true, ...value })).catch((error) => sendResponse({ ok: false, error: { code: error.code || "backend_unavailable", message: error.message || "Falha local", retryable: Boolean(error.retryable) } }));
+  dispatch(message, sender).then((value) => sendResponse({ ok: true, ...value })).catch((error) => sendResponse({ ok: false, error: { code: error.code || "backend_unavailable", message: error.message || "Falha local", retryable: Boolean(error.retryable) } }));
   return true;
 });

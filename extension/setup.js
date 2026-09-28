@@ -32,6 +32,10 @@
   }
 
   $("retry").onclick = refresh;
+  $("assistant-open").onclick = async () => {
+    try { await send({ type: "ASSISTANT_PANEL" }); }
+    catch (error) { feedback(error.message, true); }
+  };
   $("quality").oninput = () => showQuality($("quality").value);
   $("quality").onchange = async () => {
     const range = $("quality"), choice = QUALITY[range.value] || QUALITY[2]; range.disabled = true; $("quality-saving").textContent = "Salvando…";

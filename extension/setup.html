@@ -34,6 +34,12 @@
 
     <button id="retry" class="retry-button" type="button" hidden>Testar novamente</button>
 
+    <section class="quality-card" aria-labelledby="assistant-title">
+      <p id="assistant-title" class="quality-title">Prioridades do WhatsApp</p>
+      <p class="panel-help">Coleta autorizada neste PC. Trechos aprovados são analisados pelo Jev, serviço externo.</p>
+      <button id="assistant-open" class="button button-secondary" type="button">Abrir painel de prioridades</button>
+    </section>
+
     <section class="quality-card" aria-labelledby="quality-title">
       <div class="quality-heading">
         <div>
@@ -94,7 +100,7 @@
     </section>
 
     <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
-    <footer class="privacy"><span class="privacy-lock" aria-hidden="true">●</span> Áudio e texto não saem desta máquina.</footer>
+    <footer class="privacy"><span class="privacy-lock" aria-hidden="true">●</span> Transcrição local. O assistente envia somente trechos aprovados ao Jev externo.</footer>
   </main>
   <script src="setup.js"></script>
 </body>

@@ -67,17 +67,7 @@ class LocalTranscriber:
     def transcribe(self, audio_path: Path, hotwords: list[str] | None = None, transcription_mode: str = "balanced") -> TranscriptionResult:
         clean_hotwords = [term.strip() for term in (hotwords or []) if term.strip()]
         profile = MODE_PROFILE.get(transcription_mode, MODE_PROFILE["balanced"])
-        segments, info = self._load(transcription_mode).transcribe(
-            str(audio_path),
-            beam_size=profile["beam_size"],
-            vad_filter=True,
-            condition_on_previous_text=False,
-            temperature=(0.0, 0.2, 0.4),
-            compression_ratio_threshold=2.4,
-            repetition_penalty=1.1,
-            no_repeat_ngram_size=3,
-            hotwords=", ".join(clean_hotwords) or None,
-        )
+        segments, info = self._load(transcription_mode).transcribe(str(audio_path), beam_size=profile["beam_size"], vad_filter=True, condition_on_previous_text=False, temperature=0, hotwords=", ".join(clean_hotwords) or None)
         return TranscriptionResult(
             text=" ".join(segment.text.strip() for segment in segments).strip(),
             language=getattr(info, "language", "") or "",

@@ -37,7 +37,7 @@
     },
     {
       "matches": ["https://web.whatsapp.com/*"],
-      "js": ["selectors.js", "protocol.js", "content.js"],
+      "js": ["selectors.js", "protocol.js", "content.js", "assistant-collector.js"],
       "run_at": "document_idle",
       "all_frames": false
     }

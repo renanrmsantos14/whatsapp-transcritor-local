@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const S = WTSelectors, controls = new WeakMap(), active = new Set(), jobs = new Map(), views = new Map(), autoAttempted = new Set(); let diagnosticSequence = 0, autoTranscribe = false, muteAudio = true, captureChain = Promise.resolve();
+  const S = WTSelectors, controls = new WeakMap(), active = new Set(), jobs = new Map(), views = new Map(), autoAttempted = new Set(); let diagnosticSequence = 0, autoTranscribe = false, muteAudio = true, runChain = Promise.resolve();
   const diagnosticAction = (action) => ["ping", "arm", "capture", "disarm", "hold", "silence", "set_mute"].includes(action) ? action : "other";
   const traceFrom = (extra) => Number.isSafeInteger(extra?.traceId) && extra.traceId > 0 ? extra.traceId : null;
   const diagnostics = [];
@@ -36,9 +36,7 @@
     ui.host.dataset.state = state; ui.host.dataset.hasResult = state === "Transcrição" ? "true" : "false";
     ui.status.textContent = state; ui.result.textContent = text; ui.wrap.dataset.state = state === "Transcrição" ? "success" : state === "Erro" ? "error" : /Capturando|fila|Transcrevendo/.test(state) ? "busy" : "idle";
     ui.result.hidden = !text;
-    const busy = ["Capturando", "Na fila", "Transcrevendo"].some((value) => state.startsWith(value));
-    ui.retry.hidden = state !== "Transcrição"; ui.retry.disabled = busy;
-    if (busy) { ui.action.dataset.action = "cancel"; ui.action.textContent = "Cancelar"; }
+    if (["Capturando", "Na fila", "Transcrevendo"].some((value) => state.startsWith(value))) { ui.action.dataset.action = "cancel"; ui.action.textContent = "Cancelar"; }
     else if (state === "Transcrição") { ui.action.dataset.action = "copy"; ui.action.textContent = "Copiar"; }
     else if (state === "Erro") { ui.action.dataset.action = "retry"; ui.action.textContent = "Tentar novamente"; }
     else { ui.action.dataset.action = "run"; ui.action.textContent = "Transcrever"; }
@@ -74,12 +72,11 @@
     const host = document.createElement("div"); host.dataset.wtControl = "true";
     const root = host.attachShadow({ mode: "closed" }), sharedStyles = Boolean(SHARED_SHEET && "adoptedStyleSheets" in root);
     if (sharedStyles) root.adoptedStyleSheets = [SHARED_SHEET];
-    root.innerHTML = `${sharedStyles ? "" : `<style>${STYLE + SOUND_STYLE}</style>`}<div class="wt-wrap"><div class="wt-bar"><span class="wt-status" role="status" aria-live="polite"></span><button class="wt-action" type="button"></button><button class="wt-retry" type="button" hidden>Refazer</button><button class="wt-sound" type="button"></button></div><div class="wt-result"></div></div>`;
-    const ui = { host, wrap: root.querySelector(".wt-wrap"), status: root.querySelector(".wt-status"), result: root.querySelector(".wt-result"), action: root.querySelector(".wt-action"), retry: root.querySelector(".wt-retry"), sound: root.querySelector(".wt-sound"), messageId: null, jobId: null, canceled: false, restoring: false };
+    root.innerHTML = `${sharedStyles ? "" : `<style>${STYLE + SOUND_STYLE}</style>`}<div class="wt-wrap"><div class="wt-bar"><span class="wt-status" role="status" aria-live="polite"></span><button class="wt-action"></button><button class="wt-sound" type="button"></button></div><div class="wt-result"></div></div>`;
+    const ui = { host, wrap: root.querySelector(".wt-wrap"), status: root.querySelector(".wt-status"), result: root.querySelector(".wt-result"), action: root.querySelector(".wt-action"), sound: root.querySelector(".wt-sound"), messageId: null, jobId: null, canceled: false, restoring: false };
     for (const type of ["click", "pointerdown", "mousedown", "mouseup"]) host.addEventListener(type, (event) => event.stopPropagation());
     const messageId = S.messageId(row); ui.messageId = messageId;
     ui.action.onclick = () => handleAction(row, ui);
-    ui.retry.onclick = () => { if (ui.retry.disabled) return; ui.retry.disabled = true; return queueRun(row, ui, false, true); };
     ui.sound.onclick = async () => { muteAudio = !muteAudio; syncSoundButtons(); await askPage("set_mute", { muteAudio }, 1000); await runtime({ type: "SETTINGS_UPDATE", settings: { muteAudio } }); };
     row.append(host); controls.set(row, ui); views.set(messageId, { row, ui }); syncPlacement(row, ui); revealIfLast(row, ui);
     const job = jobs.get(messageId);
@@ -127,25 +124,24 @@
   }
   function problem(code, message, retryable) { return { code, message, retryable }; }
   async function cancel(messageId) { const job = jobs.get(messageId); if (!job) return; job.canceled = true; if (job.jobId) await runtime({ type: "CANCEL_JOB", jobId: job.jobId }); renderMessage(messageId, "Cancelado", "Transcrição cancelada."); }
-  function queueCapture(row, ui, tracked) {
-    const task = captureChain.then(() => tracked.canceled ? null : capture(row, ui));
-    captureChain = task.catch(() => {}); return task;
-  }
-  function queueRun(row, ui, automatic = false, ignoreCache = false) {
-    if (automatic && (!autoTranscribe || !row.isConnected || controls.get(row) !== ui || S.messageId(row) !== ui.messageId)) { autoAttempted.delete(ui.messageId); return Promise.resolve(); }
-    return run(row, ui, 0, ignoreCache);
+  function queueRun(row, ui, automatic = false) {
+    const task = runChain.then(() => {
+      if (automatic && (!autoTranscribe || !row.isConnected || controls.get(row) !== ui || S.messageId(row) !== ui.messageId)) { autoAttempted.delete(ui.messageId); return; }
+      return run(row, ui);
+    });
+    runChain = task.catch(() => {}); return task;
   }
   function maybeAutoRun(row, ui) {
     const messageId = S.messageId(row);
     if (!autoTranscribe || S.isOutgoing(row) || S.isUnplayedVoice(row) !== true || !messageId || autoAttempted.has(messageId) || ui.restoring || ui.host.dataset.state !== "Pronto") return;
     autoAttempted.add(messageId); queueRun(row, ui, true);
   }
-  async function run(row, ui, attempt = 0, ignoreCache = false) {
+  async function run(row, ui, attempt = 0) {
     const expectedId = S.messageId(row); if (active.has(expectedId)) return;
     active.add(expectedId); const tracked = { state: "Capturando", text: muteAudio ? "Capturando sem reproduzir…" : "Reproduzindo áudio para capturar…", jobId: null, canceled: false }; jobs.set(expectedId, tracked);
     try {
-      const blob = await queueCapture(row, ui, tracked); if (tracked.canceled || !blob) return; const audioHash = await hashBlob(blob);
-      if (!ignoreCache) { const cached = await runtime({ type: "CACHE_GET", messageId: expectedId, audioHash }); if (cached?.cached) { renderMessage(expectedId, "Transcrição", cached.cached.text); return; } }
+      const blob = await capture(row, ui), audioHash = await hashBlob(blob); if (tracked.canceled) return;
+      const cached = await runtime({ type: "CACHE_GET", messageId: expectedId, audioHash }); if (cached?.cached) { renderMessage(expectedId, "Transcrição", cached.cached.text); return; }
       while (true) {
         renderMessage(expectedId, "Na fila", "Aguardando o worker local…"); const created = await runtime({ type: "CREATE_JOB", audioBase64: await base64(blob), mime: blob.type });
         if (!created?.ok) throw created.error; tracked.jobId = created.job.job_id; const currentView = views.get(expectedId); if (currentView) currentView.ui.jobId = tracked.jobId;
@@ -161,7 +157,7 @@
         return;
       }
     } catch (error) {
-      if (error?.retryable && attempt < 1 && !tracked.canceled) { active.delete(expectedId); return run(row, ui, attempt + 1, ignoreCache); }
+      if (error?.retryable && attempt < 1 && !tracked.canceled) { active.delete(expectedId); return run(row, ui, attempt + 1); }
       if (!tracked.canceled) renderMessage(expectedId, "Erro", error?.message || "Não foi possível transcrever.");
     } finally { active.delete(expectedId); }
   }

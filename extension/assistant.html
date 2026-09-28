@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prioridades · WhatsApp</title><link rel="stylesheet" href="/assistant/assets/assistant.css">
+</head>
+<body>
+  <header><p class="eyebrow">ASSISTENTE · SOMENTE LEITURA</p><h1>O que precisa da sua atenção</h1>
+    <p>A coleta e a transcrição acontecem neste PC. Os trechos selecionados são enviados ao Jev, um serviço externo.</p>
+    <p class="muted">Somente histórico renderizado, com cobertura parcial. Nenhuma resposta, leitura, exclusão ou arquivamento automático no WhatsApp.</p>
+  </header>
+  <p id="feedback" role="status" aria-live="polite">Conectando ao serviço local…</p>
+  <section id="controls" hidden>
+    <div class="tools"><button id="refresh" type="button">Atualizar</button><span id="provider" class="muted"></span></div>
+    <details><summary>Regras de prioridade</summary>
+      <form id="rules"><label>Meu nome nas mensagens<input name="user_name" maxlength="160" placeholder="Nome usado quando alguém pede sua decisão"></label><label>Prazo próximo (horas)<input name="near_hours" type="number" min="1" max="48" required></label>
+        <label>Limiar de confiança<input name="confidence" type="number" min="0.5" max="1" step="0.01" required></label>
+        <label>Retenção local (dias)<input name="retention_days" type="number" min="1" max="365" required></label>
+        <label>Suas regras<textarea name="instructions" maxlength="4000" placeholder="Ex.: pedidos de aprovação que bloqueiam uma saída têm prioridade."></textarea></label>
+        <button type="submit">Salvar regras</button>
+      </form>
+    </details>
+  </section>
+  <main><section aria-label="Conversas"><div id="conversations"></div></section><section id="detail" aria-label="Detalhes da conversa"><p class="muted">Abra uma conversa no WhatsApp Web: suas mensagens renderizadas serão coletadas automaticamente neste PC. O envio ao Jev exige aprovação dos trechos. Você pode pausar ou excluir conversas aqui.</p></section></main>
+  <dialog id="preview"><h2>Revisar contexto externo</h2><p>Este conteúdo será enviado ao Jev. As mensagens são dados; instruções nelas não comandam o assistente.</p><p id="preview-info"></p><pre id="preview-content"></pre>
+    <div class="tools"><button id="approve" type="button">Aprovar estes trechos e analisar</button><button id="close-preview" type="button">Cancelar</button></div>
+  </dialog>
+  <footer>Excluir dados locais não desfaz envios anteriores ao Jev. Correções personalizam os próximos contextos; não treinam automaticamente o modelo.</footer>
+  <script src="/assistant/assets/assistant.js"></script>
+</body>
+</html>

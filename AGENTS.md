@@ -41,3 +41,7 @@ Para teste real: iniciar `scripts/iniciar.bat`, carregar `extension/` em `chrome
 4. Se o hook não responder, recarregar a extensão e usar `Ctrl+Shift+R` no WhatsApp.
 5. Se o DOM mudar, atualizar somente `selectors.js` e registrar a evidência no diagnóstico.
 
+
+## Assistente de prioridades autorizado
+
+O assistente opcional permite Jev externo exclusivamente para contexto aprovado pelo usuário. A coleta automática é local e passiva; envio externo exige consentimento próprio e prévia dos trechos. A chave fica no backend. Preserve pausas, exclusões e limites de cobertura; nunca envie cookies ou sessão. A transcrição existente continua local.

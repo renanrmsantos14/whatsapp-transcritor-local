@@ -20,3 +20,10 @@ dist/
 .playwright-cli/
 skill-observations/
 Thumbs.db
+
+# Local assistant data and private configuration
+data/
+server/.assistant-key
+fi/
+outputs/
+graphify-out/
