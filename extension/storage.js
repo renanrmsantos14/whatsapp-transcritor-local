@@ -34,7 +34,10 @@
     if (!hash) return null;
     const key = `${PREFIX}transcript:${hash}`, value = (await get(key))[key];
     if (!value || Number(value.expiresAt) <= Date.now()) { if (value) await remove(key); return null; }
-    value.lastAccessedAt = Date.now(); await set({ [key]: value }); return value;
+    if (Date.now() - Number(value.lastAccessedAt || 0) >= 5 * 60_000) {
+      value.lastAccessedAt = Date.now(); await set({ [key]: value });
+    }
+    return value;
   }
   async function cacheSet(messageId, audioHash, result) {
     const now = Date.now(), values = { [`${PREFIX}transcript:${audioHash}`]: { ...result, createdAt: now, expiresAt: now + TTL, lastAccessedAt: now } };

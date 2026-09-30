@@ -12,8 +12,8 @@
       <div class="brand-icon" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
       <div class="brand-copy">
         <p class="eyebrow">WHATSAPP TRANSCRITOR</p>
-        <h1>Seu áudio, só nesta máquina.</h1>
-        <p class="subtitle"><span class="privacy-dot" aria-hidden="true"></span>Processamento local</p>
+        <h1>Áudios em texto</h1>
+        <p class="subtitle">Privado, no seu computador.</p>
       </div>
     </header>
 
@@ -25,14 +25,9 @@
           <p id="health-detail" class="health-detail">Aguarde um instante.</p>
         </div>
       </div>
-      <dl class="facts" aria-label="Detalhes do serviço">
-        <div><dt>Modelo</dt><dd id="model">—</dd></div>
-        <div><dt>Fila</dt><dd id="queue">—</dd></div>
-        <div><dt>Versão</dt><dd id="versions">—</dd></div>
-      </dl>
+      <button id="retry" class="retry-button" type="button" hidden>Testar novamente</button>
     </section>
-
-    <button id="retry" class="retry-button" type="button" hidden>Testar novamente</button>
+    <p id="feedback" class="feedback" role="status" aria-live="polite" hidden></p>
 
     <section class="quality-card" aria-labelledby="assistant-title">
       <p id="assistant-title" class="quality-title">Prioridades do WhatsApp</p>
@@ -43,30 +38,37 @@
     <section class="quality-card" aria-labelledby="quality-title">
       <div class="quality-heading">
         <div>
-          <p id="quality-title" class="quality-title">Velocidade da transcrição</p>
-          <p id="quality-choice" class="quality-choice" aria-live="polite">Equilibrado</p>
+          <h2 id="quality-title" class="quality-title">Como transcrever</h2>
+          <p class="quality-intro">Escolha o ritmo que funciona para você.</p>
         </div>
         <span id="quality-saving" class="quality-saving" role="status" aria-live="polite"></span>
       </div>
-      <label class="sr-only" for="quality">Relação entre velocidade e precisão</label>
-      <input id="quality" class="quality-range" type="range" min="1" max="3" step="1" value="2" aria-describedby="quality-help quality-scale">
-      <div id="quality-scale" class="quality-scale" aria-hidden="true"><span>Mais rápido</span><span>Mais preciso</span></div>
+      <fieldset id="quality" class="quality-options" aria-describedby="quality-help">
+        <legend class="sr-only">Velocidade e nível de detalhe da transcrição</legend>
+        <label><input type="radio" name="quality-mode" value="fast"><span>Rápido</span></label>
+        <label><input type="radio" name="quality-mode" value="balanced" checked><span>Equilibrado</span></label>
+        <label><input type="radio" name="quality-mode" value="precise"><span>Detalhado</span></label>
+      </fieldset>
       <p id="quality-help" class="quality-help">Boa velocidade sem abrir mão de muitos detalhes.</p>
     </section>
 
     <section class="automatic-card" aria-labelledby="automatic-title">
-      <div class="automatic-copy">
-        <p id="automatic-title" class="automatic-title">Transcrever automaticamente</p>
-        <p class="automatic-help">Transcreve áudios recebidos ainda não escutados, inclusive antigos carregados na conversa.</p>
-      </div>
-      <label class="switch">
-        <input id="automatic" type="checkbox" aria-describedby="automatic-warning">
-        <span class="switch-track" aria-hidden="true"><span></span></span>
-        <span class="sr-only">Ativar transcrição automática</span>
+      <label class="automatic-hitarea">
+        <span class="automatic-copy">
+          <strong id="automatic-title" class="automatic-title">Transcrever automaticamente</strong>
+          <span class="automatic-help">Áudios recebidos e ainda não ouvidos.</span>
+        </span>
+        <span class="switch">
+          <input id="automatic" type="checkbox" aria-describedby="automatic-warning">
+          <span class="switch-track" aria-hidden="true"><span></span></span>
+        </span>
       </label>
-      <p id="automatic-warning" class="automatic-warning">A captura pode iniciar o áudio sem som quando necessário.</p>
+      <p id="automatic-warning" class="automatic-warning">Também inclui áudios antigos carregados na conversa. A captura pode iniciar o áudio sem som.</p>
+      <p id="automatic-status" class="inline-feedback" role="status" aria-live="polite" hidden></p>
     </section>
 
+    <div class="more-heading"><h2>Mais opções</h2><span>Dados e ajustes locais</span></div>
+    <div class="more-group">
     <section class="disclosure-section">
       <button id="cache-toggle" class="disclosure" type="button" aria-expanded="false" aria-controls="cache-panel">
         <span><strong>Dados locais</strong><small id="cache-usage">Cache de transcrições</small></span><span class="disclosure-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><path d="m5 7.5 5 5 5-5"></path></svg></span>
@@ -74,6 +76,7 @@
       <div id="cache-panel" class="disclosure-panel" hidden>
         <p class="panel-help">As transcrições ficam no armazenamento local por até 7 dias. Áudio nunca é salvo.</p>
         <button id="clear-cache" class="button button-secondary" type="button">Limpar transcrições</button>
+        <p id="cache-status" class="inline-feedback" role="status" aria-live="polite" hidden></p>
       </div>
     </section>
 
@@ -82,10 +85,11 @@
         <span><strong>Glossário local</strong><small>Até 200 termos personalizados</small></span><span class="disclosure-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><path d="m5 7.5 5 5 5-5"></path></svg></span>
       </button>
       <div id="glossary-panel" class="disclosure-panel" hidden>
-        <label class="sr-only" for="glossary">Termos do glossário</label>
+        <label class="field-label" for="glossary">Termos personalizados</label>
         <textarea id="glossary" rows="5" maxlength="8192" placeholder="Um termo por linha" aria-describedby="glossary-help"></textarea>
         <p id="glossary-help" class="panel-help">A base de termos de TI já é incluída. Tudo fica só neste computador.</p>
         <button id="save-glossary" class="button button-secondary" type="button">Salvar glossário</button>
+        <p id="glossary-status" class="inline-feedback" role="status" aria-live="polite" hidden></p>
       </div>
     </section>
 
@@ -95,11 +99,17 @@
       </button>
       <div id="diagnostics-panel" class="disclosure-panel" hidden>
         <p class="panel-help">Útil para investigar falhas sem expor o conteúdo das mensagens.</p>
+        <dl class="facts" aria-label="Detalhes do serviço">
+          <div><dt>Modelo</dt><dd id="model">—</dd></div>
+          <div><dt>Fila</dt><dd id="queue">—</dd></div>
+          <div><dt>Versão</dt><dd id="versions">—</dd></div>
+        </dl>
         <button id="copy-diagnostics" class="button button-secondary" type="button">Copiar relatório seguro</button>
+        <p id="diagnostics-status" class="inline-feedback" role="status" aria-live="polite" hidden></p>
       </div>
     </section>
+    </div>
 
-    <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
     <footer class="privacy"><span class="privacy-lock" aria-hidden="true">●</span> Transcrição local. O assistente envia somente trechos aprovados ao Jev externo.</footer>
   </main>
   <script src="setup.js"></script>

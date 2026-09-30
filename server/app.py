@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadF
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from .jobs import Job, JobManager
 from .transcriber import MODEL_REPOSITORY, MODEL_REVISION
@@ -115,7 +116,7 @@ async def create_job(audio: UploadFile = File(...), glossary: str = Form("[]"), 
     if transcription_mode not in {"fast", "balanced", "precise"}: raise failure("invalid_request", "Preferência de transcrição inválida", False, 400)
     path = await _store_upload(audio)
     try:
-        duration = _media_duration(path)
+        duration = await run_in_threadpool(_media_duration, path)
         if duration and duration > MAX_DURATION_SECONDS: raise failure("audio_too_long", "Áudio excede 10 minutos", False, 413)
         try: job = jobs.create(path, hotwords, transcription_mode)
         except OverflowError: raise failure("queue_full", "Fila de transcrição cheia", True, 429)

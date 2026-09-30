@@ -32,6 +32,7 @@ test("refazer exibe botão próprio e ignora o cache", () => {
 
 function createContent({ runtimeAvailable = true } = {}) {
   let rescan;
+  const scanRoots = [];
   const cache = new Map([["chat-b", { text: "texto-b" }]]);
   const control = () => ({ dataset: {}, style: {}, hidden: false, textContent: "" });
   const document = {
@@ -57,11 +58,13 @@ function createContent({ runtimeAvailable = true } = {}) {
   const row = {
     id: "chat-b",
     isConnected: true,
+    querySelectorAll() { return []; },
     getBoundingClientRect() { return { width: 0 }; },
     append(host) { host.isConnected = true; this.host = host; },
   };
   const selectors = {
-    rows: () => [row],
+    rows: (root) => { scanRoots.push(root); return [row]; },
+    rowForNode: (node) => node === row ? row : null,
     messageId: (node) => node.id,
     isOutgoing: () => false,
     bubbleAnchor: () => null,
@@ -83,8 +86,17 @@ function createContent({ runtimeAvailable = true } = {}) {
   };
   vm.createContext(context);
   vm.runInContext(source, context);
-  return { row, rescan };
+  return { row, rescan, scanRoots };
 }
+
+test("mutação fora de uma mensagem não varre o chat inteiro", () => {
+  const fixture = createContent();
+  const before = fixture.scanRoots.length;
+  fixture.rescan([{ target: { isConnected: true, querySelectorAll() {} }, addedNodes: [] }]);
+  assert.equal(fixture.scanRoots.length, before);
+  fixture.rescan([{ target: fixture.row, addedNodes: [] }]);
+  assert.equal(fixture.scanRoots.at(-1), fixture.row);
+});
 
 test("mantém UI pronta quando extensão recarregada invalida runtime", async () => {
   const fixture = createContent({ runtimeAvailable: false });
@@ -243,14 +255,22 @@ test("captura pela reprodução mesmo quando o download não expõe o blob", asy
 test("refazer captura e cria novo job sem consultar CACHE_GET", async () => {
   const fixture = createCaptureContent();
   fixture.clickAction();
-  for (let index = 0; index < 12; index += 1) await new Promise(setImmediate);
+  const waitFor = async (check) => {
+    const deadline = Date.now() + 1000;
+    while (!check()) {
+      if (Date.now() > deadline) throw new Error("job não foi criado a tempo");
+      await new Promise(setImmediate);
+    }
+  };
+  await waitFor(() => fixture.runtimeMessages().some(({ type }) => type === "CREATE_JOB"));
+  await waitFor(() => fixture.retry().hidden === false);
 
   assert.equal(fixture.retry().hidden, false);
   const cacheReadsBefore = fixture.runtimeMessages().filter(({ type }) => type === "CACHE_GET").length;
   const jobsBefore = fixture.runtimeMessages().filter(({ type }) => type === "CREATE_JOB").length;
 
   fixture.clickRetry();
-  for (let index = 0; index < 12; index += 1) await new Promise(setImmediate);
+  await waitFor(() => fixture.runtimeMessages().filter(({ type }) => type === "CREATE_JOB").length === jobsBefore + 1);
 
   assert.equal(fixture.runtimeMessages().filter(({ type }) => type === "CACHE_GET").length, cacheReadsBefore);
   assert.equal(fixture.runtimeMessages().filter(({ type }) => type === "CREATE_JOB").length, jobsBefore + 1);

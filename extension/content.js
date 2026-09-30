@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const S = WTSelectors, controls = new WeakMap(), active = new Set(), jobs = new Map(), views = new Map(), autoAttempted = new Set(); let diagnosticSequence = 0, autoTranscribe = false, muteAudio = true, runChain = Promise.resolve();
+  const S = WTSelectors, controls = new WeakMap(), active = new Set(), jobs = new Map(), views = new Map(), autoAttempted = new Set(); let diagnosticSequence = 0, autoTranscribe = false, muteAudio = true, captureChain = Promise.resolve();
   const diagnosticAction = (action) => ["ping", "arm", "capture", "disarm", "hold", "silence", "set_mute"].includes(action) ? action : "other";
   const traceFrom = (extra) => Number.isSafeInteger(extra?.traceId) && extra.traceId > 0 ? extra.traceId : null;
   const diagnostics = [];
@@ -15,7 +15,47 @@
   };
   const STYLE = `:host{display:block;width:100%;box-sizing:border-box}.wt-wrap{box-sizing:border-box;width:min(390px,calc(100% - 16px));margin:6px 0 8px;padding:10px 14px 12px;border:1px solid rgba(0,0,0,.08);border-radius:10px;background:rgba(255,255,255,.82);color:inherit;font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 1px 2px rgba(0,0,0,.04);user-select:text}.wt-bar{display:flex;align-items:center;gap:6px;min-height:26px}.wt-status{color:rgba(0,0,0,.62);font-size:11px;font-weight:650;letter-spacing:.01em;white-space:nowrap}.wt-result{margin-top:7px;max-height:190px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;scrollbar-width:thin;cursor:text}.wt-action,.wt-copy,.wt-retry,.wt-cancel{min-height:30px;border:0;border-radius:7px;background:transparent;color:#087f5b;cursor:pointer;font:600 11px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;padding:6px 8px}.wt-action{margin-left:auto;background:rgba(8,127,91,.1)}.wt-copy,.wt-cancel{margin-left:auto}.wt-retry{margin-left:4px}.wt-action:hover,.wt-copy:hover,.wt-retry:hover,.wt-cancel:hover{background:rgba(8,127,91,.16)}button[hidden]{display:none}.wt-wrap[data-state=busy]{background:rgba(0,0,0,.035)}.wt-wrap[data-state=error]{background:rgba(180,45,35,.08);border-color:rgba(180,45,35,.2);color:#8b1e1e}.wt-wrap[data-state=success]{background:rgba(8,127,91,.055);border-color:rgba(8,127,91,.18)}.wt-wrap[data-direction=outgoing]{margin-left:auto}.wt-wrap[data-direction=incoming]{margin-left:0}@media(prefers-color-scheme:dark){.wt-wrap{border-color:rgba(255,255,255,.13);background:rgba(35,35,34,.86)}.wt-status{color:rgba(255,255,255,.68)}.wt-action,.wt-copy,.wt-retry,.wt-cancel{color:#76d2ae}.wt-wrap[data-state=success]{background:rgba(90,220,150,.1)}}`;
   const SOUND_STYLE = `.wt-sound{min-width:30px;min-height:30px;border:0;border-radius:7px;padding:4px;background:transparent;color:#087f5b;cursor:pointer;font-size:16px;line-height:1}.wt-sound:hover{background:rgba(8,127,91,.16)}.wt-sound:focus-visible{outline:2px solid #70bd9e;outline-offset:1px}@media(prefers-color-scheme:dark){.wt-sound{color:#76d2ae}}`;
-  const SHARED_SHEET = (() => { try { if (typeof CSSStyleSheet !== "function") return null; const sheet = new CSSStyleSheet(); sheet.replaceSync(STYLE + SOUND_STYLE); return sheet; } catch (_) { return null; } })();
+  const UX_STYLE = `
+    .wt-wrap{padding:10px 12px;border-radius:11px;background:#fff;color:#182a22;font:13px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 1px 5px rgba(15,45,30,.07)}
+    .wt-bar{flex-wrap:wrap;gap:5px;min-height:44px}
+    .wt-status{font-size:12px;font-weight:700;color:#426050}
+    .wt-action,.wt-retry,.wt-sound{min-height:44px;border-radius:8px;font:650 12px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;transition:background-color 140ms ease,color 140ms ease}
+    .wt-action{padding:8px 12px;background:#e4f4eb;color:#086a49}
+    .wt-retry{margin-left:0;padding:8px 9px;color:#086a49}
+    .wt-sound{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;color:#527467}
+    .wt-sound svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .wt-action:hover,.wt-retry:hover,.wt-sound:hover{background:#d2eddf}
+    .wt-action:focus-visible,.wt-retry:focus-visible,.wt-sound:focus-visible,.wt-result:focus-visible{outline:2px solid #0a8559;outline-offset:2px}
+    .wt-action:active,.wt-retry:active,.wt-sound:active{background:#bce3d0}
+    .wt-wrap[data-state=idle]{width:max-content!important;max-width:calc(100% - 16px);padding:3px;border-color:transparent;background:transparent;box-shadow:none}
+    .wt-wrap[data-state=idle] .wt-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+    .wt-wrap[data-state=idle] .wt-action{margin-left:0;border:1px solid #b4deca;background:#edf8f2}
+    .wt-wrap[data-state=idle] .wt-sound{background:transparent}
+    .wt-wrap[data-state=busy]{border-color:#d9e5dd;background:#f6faf7}
+    .wt-wrap[data-state=error]{border-color:#e8bfba;background:#fff7f6;color:#822d29}
+    .wt-wrap[data-state=error] .wt-status{color:#822d29}
+    .wt-wrap[data-state=success]{border-color:#b8dfc6;background:#f0f9f3}
+    .wt-result{margin-top:8px;max-height:240px;padding-right:3px;font-size:13px;line-height:1.55;color:inherit}
+    .wt-result[hidden]{display:none}
+    @media(prefers-color-scheme:dark){
+      .wt-wrap{background:#1c2b23;color:#eef7f1;border-color:#3b5344;box-shadow:none}
+      .wt-status{color:#bfd4c5}
+      .wt-action,.wt-retry,.wt-sound{color:#b8edce}
+      .wt-action{background:#254c36}
+      .wt-action:hover,.wt-retry:hover,.wt-sound:hover,.wt-action:active,.wt-retry:active,.wt-sound:active{background:#315c42}
+      .wt-action:focus-visible,.wt-retry:focus-visible,.wt-sound:focus-visible,.wt-result:focus-visible{outline-color:#87d9ac}
+      .wt-wrap[data-state=idle]{background:transparent;border-color:transparent}
+      .wt-wrap[data-state=idle] .wt-action{border-color:#456f54;background:#234632}
+      .wt-wrap[data-state=busy]{border-color:#3b5344;background:#26372b}
+      .wt-wrap[data-state=error]{border-color:#75433f;background:#3a2524;color:#ffd5d1}
+      .wt-wrap[data-state=error] .wt-status{color:#ffd5d1}
+      .wt-wrap[data-state=success]{border-color:#326c49;background:#1d3c2c}
+    }
+    @media(prefers-reduced-motion:reduce){.wt-action,.wt-retry,.wt-sound{transition:none}}
+  `;
+  const SOUND_ON_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></svg>`;
+  const SOUND_OFF_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/><path d="m16 9 5 6m0-6-5 6"/></svg>`;
+  const SHARED_SHEET = (() => { try { if (typeof CSSStyleSheet !== "function") return null; const sheet = new CSSStyleSheet(); sheet.replaceSync(STYLE + SOUND_STYLE + UX_STYLE); return sheet; } catch (_) { return null; } })();
   const runtime = (message) => new Promise((resolve) => {
     const api = globalThis.chrome?.runtime;
     if (!api?.sendMessage) return resolve({ ok: false, error: { code: "extension_reloaded", message: "Extensão atualizada. Recarregue a aba do WhatsApp.", retryable: false } });
@@ -30,12 +70,13 @@
     addEventListener("message", listener); postMessage({ __wt: "request", id, action, ...extra }, "*");
     const timer = setTimeout(() => { removeEventListener("message", listener); log("page_timeout", { traceId, action: safeAction, timeoutMs: safeTimeout }); resolve({ ok: false, error: "timeout" }); }, timeout);
   });
-  const hashBlob = async (blob) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))].map((b) => b.toString(16).padStart(2, "0")).join("");
-  async function base64(blob) { const bytes = new Uint8Array(await blob.arrayBuffer()); let value = ""; for (let i = 0; i < bytes.length; i += 32768) value += String.fromCharCode(...bytes.subarray(i, i + 32768)); return btoa(value); }
+  const hashBytes = async (bytes) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  function base64(bytes) { let value = ""; for (let i = 0; i < bytes.length; i += 32768) value += String.fromCharCode(...bytes.subarray(i, i + 32768)); return btoa(value); }
   function render(ui, state, text = "") {
     ui.host.dataset.state = state; ui.host.dataset.hasResult = state === "Transcrição" ? "true" : "false";
     ui.status.textContent = state; ui.result.textContent = text; ui.wrap.dataset.state = state === "Transcrição" ? "success" : state === "Erro" ? "error" : /Capturando|fila|Transcrevendo/.test(state) ? "busy" : "idle";
     ui.result.hidden = !text;
+    ui.retry.hidden = state !== "Transcrição"; ui.retry.disabled = ["Capturando", "Na fila", "Transcrevendo"].some((value) => state.startsWith(value));
     if (["Capturando", "Na fila", "Transcrevendo"].some((value) => state.startsWith(value))) { ui.action.dataset.action = "cancel"; ui.action.textContent = "Cancelar"; }
     else if (state === "Transcrição") { ui.action.dataset.action = "copy"; ui.action.textContent = "Copiar"; }
     else if (state === "Erro") { ui.action.dataset.action = "retry"; ui.action.textContent = "Tentar novamente"; }
@@ -72,11 +113,12 @@
     const host = document.createElement("div"); host.dataset.wtControl = "true";
     const root = host.attachShadow({ mode: "closed" }), sharedStyles = Boolean(SHARED_SHEET && "adoptedStyleSheets" in root);
     if (sharedStyles) root.adoptedStyleSheets = [SHARED_SHEET];
-    root.innerHTML = `${sharedStyles ? "" : `<style>${STYLE + SOUND_STYLE}</style>`}<div class="wt-wrap"><div class="wt-bar"><span class="wt-status" role="status" aria-live="polite"></span><button class="wt-action"></button><button class="wt-sound" type="button"></button></div><div class="wt-result"></div></div>`;
-    const ui = { host, wrap: root.querySelector(".wt-wrap"), status: root.querySelector(".wt-status"), result: root.querySelector(".wt-result"), action: root.querySelector(".wt-action"), sound: root.querySelector(".wt-sound"), messageId: null, jobId: null, canceled: false, restoring: false };
+    root.innerHTML = `${sharedStyles ? "" : `<style>${STYLE + SOUND_STYLE + UX_STYLE}</style>`}<div class="wt-wrap"><div class="wt-bar"><span class="wt-status" role="status" aria-live="polite"></span><button class="wt-action" type="button"></button><button class="wt-retry" type="button" hidden>Refazer</button><button class="wt-sound" type="button"></button></div><div class="wt-result" role="region" aria-label="Texto transcrito" tabindex="0"></div></div>`;
+    const ui = { host, wrap: root.querySelector(".wt-wrap"), status: root.querySelector(".wt-status"), result: root.querySelector(".wt-result"), action: root.querySelector(".wt-action"), retry: root.querySelector(".wt-retry"), sound: root.querySelector(".wt-sound"), messageId: null, jobId: null, canceled: false, restoring: false };
     for (const type of ["click", "pointerdown", "mousedown", "mouseup"]) host.addEventListener(type, (event) => event.stopPropagation());
     const messageId = S.messageId(row); ui.messageId = messageId;
     ui.action.onclick = () => handleAction(row, ui);
+    ui.retry.onclick = () => { if (ui.retry.disabled) return; ui.retry.disabled = true; return queueRun(row, ui, false, true); };
     ui.sound.onclick = async () => { muteAudio = !muteAudio; syncSoundButtons(); await askPage("set_mute", { muteAudio }, 1000); await runtime({ type: "SETTINGS_UPDATE", settings: { muteAudio } }); };
     row.append(host); controls.set(row, ui); views.set(messageId, { row, ui }); syncPlacement(row, ui); revealIfLast(row, ui);
     const job = jobs.get(messageId);
@@ -84,9 +126,9 @@
     return ui;
   }
   function renderSound(ui) {
-    ui.sound.textContent = muteAudio ? "🔇" : "🔊";
-    ui.sound.title = muteAudio ? "Ativar som na captura" : "Mutar som na captura";
-    ui.sound.setAttribute("aria-label", ui.sound.title); ui.sound.setAttribute("aria-pressed", String(muteAudio));
+    ui.sound.innerHTML = muteAudio ? SOUND_OFF_ICON : SOUND_ON_ICON;
+    ui.sound.title = muteAudio ? "Captura sem som. Ativar som" : "Captura com som. Desativar som";
+    ui.sound.setAttribute("aria-label", ui.sound.title); ui.sound.setAttribute("aria-pressed", String(!muteAudio));
   }
   function syncSoundButtons() { for (const view of views.values()) renderSound(view.ui); }
   async function handleAction(row, ui) {
@@ -124,26 +166,27 @@
   }
   function problem(code, message, retryable) { return { code, message, retryable }; }
   async function cancel(messageId) { const job = jobs.get(messageId); if (!job) return; job.canceled = true; if (job.jobId) await runtime({ type: "CANCEL_JOB", jobId: job.jobId }); renderMessage(messageId, "Cancelado", "Transcrição cancelada."); }
-  function queueRun(row, ui, automatic = false) {
-    const task = runChain.then(() => {
-      if (automatic && (!autoTranscribe || !row.isConnected || controls.get(row) !== ui || S.messageId(row) !== ui.messageId)) { autoAttempted.delete(ui.messageId); return; }
-      return run(row, ui);
-    });
-    runChain = task.catch(() => {}); return task;
+  function queueCapture(row, ui, tracked) {
+    const task = captureChain.then(() => tracked.canceled ? null : capture(row, ui));
+    captureChain = task.catch(() => {}); return task;
+  }
+  function queueRun(row, ui, automatic = false, ignoreCache = false) {
+    if (automatic && (!autoTranscribe || !row.isConnected || controls.get(row) !== ui || S.messageId(row) !== ui.messageId)) { autoAttempted.delete(ui.messageId); return Promise.resolve(); }
+    return run(row, ui, 0, ignoreCache);
   }
   function maybeAutoRun(row, ui) {
     const messageId = S.messageId(row);
     if (!autoTranscribe || S.isOutgoing(row) || S.isUnplayedVoice(row) !== true || !messageId || autoAttempted.has(messageId) || ui.restoring || ui.host.dataset.state !== "Pronto") return;
     autoAttempted.add(messageId); queueRun(row, ui, true);
   }
-  async function run(row, ui, attempt = 0) {
+  async function run(row, ui, attempt = 0, ignoreCache = false) {
     const expectedId = S.messageId(row); if (active.has(expectedId)) return;
     active.add(expectedId); const tracked = { state: "Capturando", text: muteAudio ? "Capturando sem reproduzir…" : "Reproduzindo áudio para capturar…", jobId: null, canceled: false }; jobs.set(expectedId, tracked);
     try {
-      const blob = await capture(row, ui), audioHash = await hashBlob(blob); if (tracked.canceled) return;
-      const cached = await runtime({ type: "CACHE_GET", messageId: expectedId, audioHash }); if (cached?.cached) { renderMessage(expectedId, "Transcrição", cached.cached.text); return; }
+      const blob = await queueCapture(row, ui, tracked); if (tracked.canceled || !blob) return; const bytes = new Uint8Array(await blob.arrayBuffer()), audioHash = await hashBytes(bytes);
+      if (!ignoreCache) { const cached = await runtime({ type: "CACHE_GET", messageId: expectedId, audioHash }); if (cached?.cached) { renderMessage(expectedId, "Transcrição", cached.cached.text); return; } }
       while (true) {
-        renderMessage(expectedId, "Na fila", "Aguardando o worker local…"); const created = await runtime({ type: "CREATE_JOB", audioBase64: await base64(blob), mime: blob.type });
+        renderMessage(expectedId, "Na fila", "Aguardando o worker local…"); const created = await runtime({ type: "CREATE_JOB", audioBase64: base64(bytes), mime: blob.type });
         if (!created?.ok) throw created.error; tracked.jobId = created.job.job_id; const currentView = views.get(expectedId); if (currentView) currentView.ui.jobId = tracked.jobId;
         const started = Date.now();
         while (!tracked.canceled) {
@@ -157,7 +200,7 @@
         return;
       }
     } catch (error) {
-      if (error?.retryable && attempt < 1 && !tracked.canceled) { active.delete(expectedId); return run(row, ui, attempt + 1); }
+      if (error?.retryable && attempt < 1 && !tracked.canceled) { active.delete(expectedId); return run(row, ui, attempt + 1, ignoreCache); }
       if (!tracked.canceled) renderMessage(expectedId, "Erro", error?.message || "Não foi possível transcrever.");
     } finally { active.delete(expectedId); }
   }
@@ -187,10 +230,11 @@
     if (!mutations.length) fullScanPending = true;
     for (const mutation of mutations) {
       const target = mutation.target?.querySelectorAll ? mutation.target : mutation.target?.parentElement;
-      if (target) { pendingRoots.add(target); const row = S.rowForNode(target); if (row) pendingRoots.add(row); }
+      const row = target && S.rowForNode(target);
+      if (row) pendingRoots.add(row);
       for (const node of mutation.addedNodes || []) {
         const root = node?.querySelectorAll ? node : node?.parentElement;
-        if (root) pendingRoots.add(root);
+        if (root && !root.dataset?.wtControl) pendingRoots.add(S.rowForNode(root) || root);
       }
     }
     if (scanScheduled) return;

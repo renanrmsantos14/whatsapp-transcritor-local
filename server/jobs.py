@@ -71,6 +71,7 @@ class JobManager:
         self._results: mp.Queue | None = None
         self._lock = threading.RLock()
         self._stopped = threading.Event()
+        self._wake = threading.Event()
         self._thread = threading.Thread(target=self._run, name="whisper-job-manager", daemon=True)
         self._thread.start()
 
@@ -87,6 +88,7 @@ class JobManager:
             job = Job(uuid.uuid4().hex, path, hotwords, transcription_mode)
             self._jobs[job.job_id] = job
             self._pending.append(job.job_id)
+            self._wake.set()
             return job
 
     def get(self, job_id: str) -> Job | None:
@@ -106,10 +108,12 @@ class JobManager:
                 try: self._pending.remove(job_id)
                 except ValueError: pass
             self._finish_locked(job, "canceled", error={"code": "canceled", "message": "Transcrição cancelada", "retryable": False})
+            self._wake.set()
             return job
 
     def stop(self) -> None:
         self._stopped.set()
+        self._wake.set()
         with self._lock:
             self._terminate_worker_locked()
             for job in self._jobs.values():
@@ -144,7 +148,10 @@ class JobManager:
             del self._jobs[job_id]
 
     def _run(self) -> None:
-        while not self._stopped.wait(0.1):
+        while not self._stopped.is_set():
+            self._wake.wait(0.1 if self._active else None)
+            self._wake.clear()
+            if self._stopped.is_set(): break
             with self._lock:
                 self._cleanup_locked()
                 job = self._jobs.get(self._active) if self._active else None

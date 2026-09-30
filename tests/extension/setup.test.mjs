@@ -8,18 +8,20 @@ const css = fs.readFileSync(new URL("../../extension/setup.css", import.meta.url
 const font = fs.readFileSync(new URL("../../extension/fonts/manrope-latin-wght.woff2", import.meta.url));
 
 test("popup prioriza saúde local e configurações expansíveis", () => {
-  for (const id of ["health-card", "health-title", "health-detail", "model", "queue", "versions", "retry", "quality", "quality-choice", "quality-help", "quality-saving", "automatic", "automatic-warning", "cache-toggle", "cache-panel", "glossary-toggle", "glossary-panel", "diagnostics-toggle", "diagnostics-panel", "glossary", "clear-cache", "save-glossary", "copy-diagnostics", "feedback"]) {
+  for (const id of ["health-card", "health-title", "health-detail", "model", "queue", "versions", "retry", "quality", "quality-help", "quality-saving", "automatic", "automatic-warning", "automatic-status", "cache-toggle", "cache-panel", "cache-status", "glossary-toggle", "glossary-panel", "glossary-status", "diagnostics-toggle", "diagnostics-panel", "diagnostics-status", "glossary", "clear-cache", "save-glossary", "copy-diagnostics", "feedback"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   assert.match(html, /WhatsApp Transcritor/);
-  assert.match(html, /Processamento local/);
+  assert.match(html, /Privado, no seu computador/);
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /aria-controls="(?:cache|glossary|diagnostics)-panel"/);
   assert.match(html, /<svg viewBox="0 0 20 20"/);
   assert.doesNotMatch(html, /⌄/u);
   assert.match(html, /role="status"/);
-  assert.match(html, /Mais rápido/);
-  assert.match(html, /Mais preciso/);
+  assert.match(html, /name="quality-mode" value="fast"/);
+  assert.match(html, /name="quality-mode" value="balanced" checked/);
+  assert.match(html, /name="quality-mode" value="precise"/);
+  assert.match(html, /<legend class="sr-only">Velocidade e nível de detalhe/);
   assert.match(html, /Transcrever automaticamente/);
   assert.match(html, /pode iniciar o áudio sem som/);
   for (const removed of ["id=\"install\"", "id=\"start\"", "id=\"reload\"", "id=\"extension-path\"", "id=\"update\"", "github.com"]) assert.doesNotMatch(html, new RegExp(removed));

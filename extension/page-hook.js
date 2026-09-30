@@ -1,7 +1,9 @@
 (() => {
   "use strict";
   const MAX_BYTES = 25 * 1024 * 1024;
+  const MAX_RETAINED_BYTES = 50 * 1024 * 1024;
   const retained = new Map();
+  let retainedBytes = 0;
   const sourceOwners = new Map();
   const seen = new Set();
   const mediaStates = new WeakMap();
@@ -63,6 +65,7 @@
     if (!entry) return false;
     const [url, blob] = entry;
     retained.delete(url);
+    retainedBytes -= blob.size;
     sourceOwners.delete(url);
     if (!blob?.size || blob.size > MAX_BYTES) {
       log("prearm_consumed", { traceId: capture.traceId, accepted: false });
@@ -127,9 +130,12 @@
     if (!owns || !blobUrl) return;
     capture.done = true;
     try {
-      const response = await fetch(url);
-      if (!response.ok) return finishCapture({ ok: false, error: `blob fetch ${response.status}` });
-      const blob = await response.blob();
+      let blob = retained.get(url);
+      if (!blob) {
+        const response = await fetch(url);
+        if (!response.ok) return finishCapture({ ok: false, error: `blob fetch ${response.status}` });
+        blob = await response.blob();
+      }
       if (!blob.size || blob.size > MAX_BYTES) return finishCapture({ ok: false, error: "invalid blob" });
       finishCapture({ ok: true, blob, type: blob.type, size: blob.size });
     } catch (error) {
@@ -159,11 +165,16 @@
   URL.createObjectURL = function (value) {
     const url = originalCreate(value);
     try {
-      const audioCandidate = value instanceof Blob && looksLikeAudio(value);
+      const audioCandidate = value instanceof Blob && value.size <= MAX_BYTES && looksLikeAudio(value);
       if (capture) log("create_object_url", { traceId: capture.traceId, audioCandidate, blobUrl: typeof url === "string" && url.startsWith("blob:") });
       if (audioCandidate) {
         retained.set(url, value);
-        while (retained.size > 40) { const oldest = retained.keys().next().value; retained.delete(oldest); sourceOwners.delete(oldest); }
+        retainedBytes += value.size;
+        while (retained.size > 40 || retainedBytes > MAX_RETAINED_BYTES) {
+          const oldest = retained.keys().next().value;
+          retainedBytes -= retained.get(oldest).size;
+          retained.delete(oldest); sourceOwners.delete(oldest);
+        }
         grab(url);
       }
     } catch (_) {}

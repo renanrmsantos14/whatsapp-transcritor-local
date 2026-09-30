@@ -11,6 +11,7 @@ function createHook({ debug = true } = {}) {
   const logs = [];
   const urls = new Map();
   let nextUrl = 0;
+  let fetches = 0;
   let scanCapture;
   const markedTarget = {
     messageId: "chat-a",
@@ -56,7 +57,7 @@ function createHook({ debug = true } = {}) {
         return selector.includes("wt-capture-target") ? markedTarget : markedRow;
       },
     },
-    fetch: async (url) => ({ ok: true, blob: async () => urls.get(url) }),
+    fetch: async (url) => { fetches += 1; return { ok: true, blob: async () => urls.get(url) }; },
     setInterval(callback) { scanCapture = callback; return 1; },
     clearInterval() {},
     window,
@@ -64,7 +65,7 @@ function createHook({ debug = true } = {}) {
   vm.createContext(context);
   vm.runInContext(source, context);
   const request = (id, action, extra = {}) => listeners.get("message")({ source: window, data: { __wt: "request", id, action, ...extra } });
-  return { context, markedRow, markedTarget, messages, logs, request, scan: () => scanCapture() };
+  return { context, markedRow, markedTarget, messages, logs, request, scan: () => scanCapture(), fetches: () => fetches };
 }
 
 test("hook captura createObjectURL global da mensagem marcada", async () => {
@@ -77,6 +78,16 @@ test("hook captura createObjectURL global da mensagem marcada", async () => {
   hook.request("capture", "capture");
 
   assert.equal(await hook.messages.find((message) => message.id === "capture")?.blob?.text(), "audio-a");
+  assert.equal(hook.fetches(), 0);
+});
+
+test("limita a retenção de áudio pelo tamanho total", () => {
+  const hook = createHook();
+  const audio = new Blob([new Uint8Array(20 * 1024 * 1024)], { type: "audio/ogg" });
+  for (let i = 0; i < 3; i += 1) hook.context.URL.createObjectURL(audio);
+  hook.request("arm", "arm", { marker: "marker-a", messageId: "chat-a" });
+  const retained = hook.logs.find(([, event]) => event === "prearm_retained")?.[2];
+  assert.equal(retained.retainedAudioCount, 2);
 });
 
 test("hook não associa blob B quando row marcada é reciclada", async () => {

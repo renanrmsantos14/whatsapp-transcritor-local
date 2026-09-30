@@ -7,13 +7,14 @@ const source = fs.readFileSync(new URL("../../extension/storage.js", import.meta
 
 function createStorage() {
   const values = {};
+  let writes = 0;
   const local = {
     async get(keys) {
       if (keys === null) return { ...values };
       if (typeof keys === "string") return { [keys]: values[keys] };
       return Object.fromEntries(keys.map((key) => [key, values[key]]));
     },
-    async set(writes) { Object.assign(values, writes); },
+    async set(updated) { writes += 1; Object.assign(values, updated); },
     async remove(keys) { for (const key of keys) delete values[key]; },
   };
   const context = {
@@ -25,8 +26,17 @@ function createStorage() {
   };
   vm.createContext(context);
   vm.runInContext(source, context);
-  return { storage: context.WTStorage, values };
+  return { storage: context.WTStorage, values, writes: () => writes };
 }
+
+test("leituras repetidas do cache não regravam o armazenamento", async () => {
+  const fixture = createStorage();
+  await fixture.storage.cacheSet("chat-a", "hash-a", { text: "texto-a" });
+  const before = fixture.writes();
+  await fixture.storage.cacheGet("chat-a");
+  await fixture.storage.cacheGet("chat-a");
+  assert.equal(fixture.writes(), before);
+});
 
 test("não restaura ponteiro v2 sem prova de vínculo da mensagem", async () => {
   const fixture = createStorage();
